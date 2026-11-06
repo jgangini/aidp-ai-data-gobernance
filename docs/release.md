@@ -73,3 +73,7 @@ El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se co
 | `aidp_ai_data_governance-0.2.0-py3-none-any.whl` | 277589 | `c9597470a59b9c8beaeb35a4b3a49575e15bfa8a176568e046532b33a4b98121` |
 | `aidp-governance-release.json` | 793 | `a74ef920a11f83acc26ac257f354de531b098ac1a49ddd90b6c50310487e79e8` |
 | `SHA256SUMS` | 309 | `b3d248941a983153b0b907ecbdb428058f0c8096944ba76097f706c30f668dd3` |
+
+## RC3: selector Identity Domain
+
+`v0.2.0-rc.3` cambia únicamente el campo `identity_domain_id` de texto a select con `options_source: oci_identity_domains`, obligatorio y con el patrón de OCID previo. La coordinación implementa el consumidor CTN (dominios ACTIVE, región home, labels nombre/compartimento); Governance conserva las verificaciones de identidad nativas. Se mantienen la ficha AIDP AI Data Governance, su PNG, hooks, Terraform y wheel 0.2.0. RC1 y RC2 permanecen inmutables. No se consultó OCI ni se operaron Browser/Docker compartidos.
