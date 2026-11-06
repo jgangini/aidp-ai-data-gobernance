@@ -1,6 +1,6 @@
 # Release privada y handoff a Deploy Studio
 
-Producto `aidp-ai-data-governance`. Release de prueba vigente [`v0.2.0-rc.3`](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.3): implementación 0.2.0 con recuperación de artefactos; aceptación OCI todavía pendiente. La visibilidad se conserva privada y el tag se congela en el SHA probado por CI. Deploy Studio obtiene el código de ese tag resuelto a SHA; el módulo no descarga assets con PAT ni tiene VM de portal.
+Producto `aidp-ai-data-governance`. Release de prueba vigente [`v0.2.0-rc.3`](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.3): implementación 0.2.0 con recuperación de artefactos; aceptación OCI todavía pendiente. La visibilidad se conserva privada y el tag se congela en el SHA probado por CI. Deploy Studio obtiene el código de ese tag resuelto a SHA; el módulo no descarga assets con PAT ni tiene VM de portal.
 
 ## Conjunto exacto de assets
 
@@ -42,7 +42,7 @@ El rollback cubre artefactos propios y refresh, no datos. Se bloquea ante esquem
 ## Evidencia publicada RC1
 
 - Commit exacto del tag anotado: `168273bbb8c4f143602aecea71a1d8552a995acf`; verificado por resolución remota del tag. No moverlo al cierre documental posterior.
-- [CI 42146959451](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42146959451): 1.836 tests Python en 246.80 s, compilación y cinco tests Terraform aprobados.
+- [CI 42146959451](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42146959451): 1.836 tests Python en 246.80 s, compilación y cinco tests Terraform aprobados.
 - GitHub confirmó `isImmutable=true`, `isDraft=false`, `isPrerelease=true`; repositorio privado después de publicar.
 - Los cuatro assets se descargaron de GitHub y sus bytes coinciden con los preparados. ZIP: 248 archivos de fuente; consumidor real seleccionó 129 archivos / 888.818 bytes, nueve campos y cinco operaciones dentro de 250 archivos / 10 MiB.
 
@@ -63,9 +63,9 @@ El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se co
 
 ### Publicación y verificación RC2
 
-[Release privada e inmutable v0.2.0-rc.2](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.2), tag remoto resuelto a `851d83757b15fd4938a366738e2fd606a8c26b5b`. GitHub confirmó `isImmutable=true`, `isDraft=false`, `isPrerelease=true`; los cuatro assets descargados coinciden con sus hashes. No se modificó RC1.
+[Release privada e inmutable v0.2.0-rc.2](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.2), tag remoto resuelto a `851d83757b15fd4938a366738e2fd606a8c26b5b`. GitHub confirmó `isImmutable=true`, `isDraft=false`, `isPrerelease=true`; los cuatro assets descargados coinciden con sus hashes. No se modificó RC1.
 
-[CI 42149734792](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42149734792) aprobó 1.836 tests Python en 192.39 s, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 215.10 s y compilación aprobados; termina con error únicamente por Sentrux, igual a RC1 (calidad 0.7016, tres complejas, cero ciclos/god files). Baseline conservado; sin reglas custom. El parser real aprobó 129 archivos / 889.181 bytes, título exacto, PNG existente y texto alternativo. La revisión UI/OCI sigue pendiente de coordinación, sin Browser/Docker/OCI operados por este chat.
+[CI 42149734792](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42149734792) aprobó 1.836 tests Python en 192.39 s, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 215.10 s y compilación aprobados; termina con error únicamente por Sentrux, igual a RC1 (calidad 0.7016, tres complejas, cero ciclos/god files). Baseline conservado; sin reglas custom. El parser real aprobó 129 archivos / 889.181 bytes, título exacto, PNG existente y texto alternativo. La revisión UI/OCI sigue pendiente de coordinación, sin Browser/Docker/OCI operados por este chat.
 
 | Asset RC2 | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -80,9 +80,9 @@ El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se co
 
 ### Publicación y verificación RC3
 
-[Release privada e inmutable v0.2.0-rc.3](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.3), tag remoto resuelto a `d46a66d9972c63bceb70ce5b72e258657cdcbfc3`. GitHub confirmó `isImmutable=true`, `isDraft=false`, `isPrerelease=true`; los cuatro assets descargados coinciden con sus hashes. No se modificaron RC1/RC2.
+[Release privada e inmutable v0.2.0-rc.3](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.3), tag remoto resuelto a `d46a66d9972c63bceb70ce5b72e258657cdcbfc3`. GitHub confirmó `isImmutable=true`, `isDraft=false`, `isPrerelease=true`; los cuatro assets descargados coinciden con sus hashes. No se modificaron RC1/RC2.
 
-[CI 42151723191](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42151723191) aprobó 1.836 tests Python en 274.77 s, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 218.38 s y compilación aprobados; mismo fallo Sentrux heredado (calidad 0.7016, tres complejas, cero ciclos/god files; baseline conservado y sin reglas custom). Parser real CTN actualizado aprobado sobre el ZIP publicado: 129 archivos / 889.225 bytes; `select`, source, required y patrón correctos, nombre/PNG conservados. Enumeración real de dominios y aceptación UI/OCI bajo coordinación; no se operaron recursos compartidos desde este chat.
+[CI 42151723191](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42151723191) aprobó 1.836 tests Python en 274.77 s, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 218.38 s y compilación aprobados; mismo fallo Sentrux heredado (calidad 0.7016, tres complejas, cero ciclos/god files; baseline conservado y sin reglas custom). Parser real CTN actualizado aprobado sobre el ZIP publicado: 129 archivos / 889.225 bytes; `select`, source, required y patrón correctos, nombre/PNG conservados. Enumeración real de dominios y aceptación UI/OCI bajo coordinación; no se operaron recursos compartidos desde este chat.
 
 | Asset RC3 | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -90,3 +90,7 @@ El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se co
 | `aidp_ai_data_governance-0.2.0-py3-none-any.whl` | 277589 | `c9597470a59b9c8beaeb35a4b3a49575e15bfa8a176568e046532b33a4b98121` |
 | `aidp-governance-release.json` | 793 | `957e11a55182eaaa27755451cbc84ad02b7e038a1697b28fcc4d7500622cb8e5` |
 | `SHA256SUMS` | 309 | `f002504166c46127f0266204e8f1bc1013896bcada9912c8b938d8d53f14f7cd` |
+
+## RC4: nombre canónico público y formulario agrupado
+
+La release prevista `v0.2.0-rc.4` utiliza `jgangini/aidp-ai-data-gobernance` y conserva project_id/nombre visible. README español ampliado, URLs canónicas actualizadas, modelo en enterprise_ai y grupos genéricos de plataforma/identidad/artefactos del schema 1. La plataforma existente se elige mediante `oci_aidp_platforms`, conservando su patrón y workspace explícito. [Auditoría previa a publicación](publication.md). Autonomous/memoria es un pendiente separado según [su contrato](agent-memory.md); no se anuncian campos sin consumidor ni se altera el runtime de los agentes. Los tags anteriores se conservan.
