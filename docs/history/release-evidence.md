@@ -131,3 +131,26 @@ Sentrux conserva el baseline vacío fallido. Las responsabilidades nuevas de con
 | `SHA256SUMS` | 309 | `688f75abe8a388a41473b309eb24f12ffbbf6128a38331942b997b4225fbbb04` |
 
 El manifiesto de evidencia declara `native_acceptance=paused_by_user` y memoria implementada en control plane, sin aceptación de persistencia nativa. No confundir READY técnico con una sesión/checkpoint real confirmado. ACK incierto sin work request queda Pending y requiere conciliación protegida; una plataforma READY ajena o con ETag cambiado no se adopta. No se deshabilita AI ni se cambia/elimina Autonomous como rollback.
+
+## Candidata 0.3.0 RC2: contrato del runner
+
+Código corregido en `bd91108bf95c8e8a93d4164bb78ad77bb4dca278`, publicado en main. La validación UI coordinada de RC1 falló antes de OCI/APPLY con `Repository preflight returned invalid JSON`. Se reprodujo con el entrypoint real: salida 1, archivo RESULT vacío y JSON sólo en stdout. El CLI confundía los contratos preflight y post-apply.
+
+Preflight ahora consume compartimento string más modo y escribe `DEPLOY_STUDIO_RESULT`; post-apply consume objeto resuelto y escribe `DEPLOY_STUDIO_OUTPUT`. Los errores de contexto también producen JSON. Se exigen archivos explícitos de configuración y clave, sin descubrimiento local; el Signer verifica sus contenidos. Se declaran las seis salidas de operación/estado que el consumidor rechazaba. Los trece campos, programas de agentes y contrato de memoria permanecen iguales.
+
+- [CI 42169061530](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42169061530) aprobada para ese SHA: 1.944 tests Python en 247.30 s, compilación, 18 tests Terraform y 90 tests del runner mínimo en 16.31 s.
+- Postflight `.local/runner-contract-postflight-final.txt`: **1.944 tests aprobados en 237.82 s**, compilación aprobada, salida global 1 exclusivamente por Sentrux. Preflight ejecutado antes del cambio, con el mismo fallo contra la referencia vacía conservada.
+- Python 3.12/OCI 2.184.1/httpx 0.28.1/Pydantic 2.11.10, más pytest: **90 tests aprobados en 29.61 s**, incluidos 26 de entrypoints y 64 de memoria. No se instalaron requisitos del paquete ni bibliotecas de agentes. La misma ruta pasó en CI Linux.
+- Los subprocesos ejecutan parsing, bindings, configuración OCI y Signer reales, con claves efímeras. Cubren preflight new/existing, cinco resultados post-apply, errores de contexto/JSON/credenciales/proveedor y variables de fase cruzadas. Sólo transportes y fronteras de efectos se simulan; red e imports de agentes bloqueados. No es aceptación OCI.
+- Las funciones consumidoras CTN capturadas coinciden exactamente con su fuente real; SHA-256 `a5a6765d194d4b62ffdbcbf4c3e3b1804bf10d3a5c84e10b7b03122b8de73c17`. Los cinco resultados pasan el validador con el manifiesto distribuido.
+- Terraform fmt/validate y **18 tests con mocks** aprobados. Parser/extractor real CTN: **132 archivos / 928.250 bytes**, dentro de 250 / 10 MiB. Wheel aislado importable sin agentes; CLI idéntico al commit. Escaneo de candidato: 263 archivos, sin claves/tokens detectados. Enlaces locales, trece campos y cinco operaciones documentadas verificados.
+- Sentrux completo: calidad **0.7001**, coupling 0.07, **cuatro complejas**, cero ciclos/god files. Sin reglas custom ni reset. Una copia diagnóstica sin el fixture del consumidor CTN conserva tres complejas y 0.7006: la complejidad adicional pertenece a ese fixture legible. Esta atribución no reemplaza el gate final fallido. Graphify no configurado.
+
+Los cuatro assets se construyeron localmente para `v0.3.0-rc.2`. **No se creó el tag ni se publicó la release**: la revisión automática rechazó la mutación pública durable por falta de autorización explícita para esa publicación concreta. La autorización general de pruebas y visibilidad se revisó, sin interpretarla como aprobación nueva tras ese rechazo. Publicación pendiente de aprobación; no se intentó eludirla. Los tags y assets anteriores permanecen intactos. UI/OCI/APPLY y persistencia nativa continúan bajo coordinación.
+
+| Asset candidato RC2 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `aidp-ai-data-governance-source.zip` | 641665 | `3a98b93db9ceca5f4ab1f9fc44e7a74c7b25ab247a402deeb16a6c314f0c1709` |
+| `aidp_ai_data_governance-0.3.0-py3-none-any.whl` | 283553 | `3d730216271f342f6596dd4bffbb6a1a8bddaae68e74f9424758374ee9b23208` |
+| `aidp-governance-release.json` | 1252 | `4ac43d1aa29a21a0bafe80acf82208bdb3438d1403292b1c3e123438420fa3ff` |
+| `SHA256SUMS` | 312 | `091aced5f575a0cfe3e89fd4aaf157a09743a44e55c32053d55157ab99a9b51b` |
