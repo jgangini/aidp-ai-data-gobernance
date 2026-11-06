@@ -20,4 +20,6 @@ Los tags, assets y manifiestos de releases anteriores no se alteran: sus URLs or
 
 ## Alcance de memoria
 
-El cambio público y de documentación se entrega separadamente del aprovisionamiento de Autonomous. El [contrato de memoria](agent-memory.md) registra el runtime real, los requisitos oficiales, la incompatibilidad del SDK fijado y la falta de un readback documentado del OCID asociado. No hay campos ni recursos Autonomous decorativos. Las pruebas de despliegue permanecen detenidas por el usuario.
+El nombre público y el README se completaron en `c9b359f`. La continuación incorpora aprovisionamiento y habilitación de memoria con SDK compatible, manteniendo separada la aceptación nativa. El [contrato de memoria](agent-memory.md) registra el runtime real, los campos consumidos y la falta de un readback directo del OCID asociado. No hay campos ni recursos Autonomous decorativos. Las pruebas de despliegue permanecen detenidas por el usuario.
+
+La API confirmó `private=false` y `visibility=public`; una lectura anónima sin token también aprobó. El rename conservó la inmutabilidad de releases y los hashes de los tags previos.

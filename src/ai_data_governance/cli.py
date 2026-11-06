@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import uuid
 from .errors import AidpProvisionPending
+from .managed_memory import ensure_memory, memory_store, preflight_memory
 
 
 OPERATIONS = frozenset({'install', 'resume', 'update', 'redeploy', 'rollback'})
@@ -13,7 +14,8 @@ OPERATIONS = frozenset({'install', 'resume', 'update', 'redeploy', 'rollback'})
 
 def _applied_bindings(context, values):
     outputs = context.get('terraform_outputs', {})
-    for key in ('aidp_mode', 'admin_user_ocid', 'identity_domain_id', 'model_id', 'artifacts_bucket_name'):
+    for key in ('aidp_mode', 'admin_user_ocid', 'identity_domain_id', 'model_id', 'artifacts_bucket_name',
+                'autonomous_database_mode'):
         if outputs.get(key) != values[key]:
             raise ValueError('Terraform outputs changed the selected platform or administrator binding')
     ownership = 'owned' if values['aidp_mode'] == 'new' else 'external'
@@ -23,6 +25,15 @@ def _applied_bindings(context, values):
             outputs.get('ai_data_platform_ocid') != values['existing_ai_data_platform_ocid']
             or outputs.get('workspace_key') != values['existing_workspace_key']):
         raise ValueError('Terraform outputs changed the exact external platform or workspace')
+    database_ownership = 'owned' if values['autonomous_database_mode'] == 'new' else 'external'
+    if outputs.get('resource_ownership', {}).get('memory_database') != database_ownership:
+        raise ValueError('Memory database ownership must match the selected mode')
+    database = outputs.get('autonomous_database_id', '')
+    if not isinstance(database, str) or not database.startswith('ocid1.autonomousdatabase.'):
+        raise ValueError('Terraform must return the exact memory database identity')
+    if (values['autonomous_database_mode'] == 'existing'
+            and database != values['existing_autonomous_database_ocid']):
+        raise ValueError('Terraform changed the selected external memory database')
     return {**values, **outputs}
 
 
@@ -32,6 +43,14 @@ def _validate_selection(values):
         raise ValueError('Invalid platform mode')
     if values.get('governance_operation', 'install') not in OPERATIONS:
         raise ValueError('Invalid Governance operation')
+    if values['autonomous_database_mode'] not in {'new', 'existing'}:
+        raise ValueError('Invalid memory database mode')
+    if values['autonomous_database_mode'] == 'existing':
+        if not values.get('existing_autonomous_database_ocid', '').startswith('ocid1.autonomousdatabase.'):
+            raise ValueError('An exact external memory database OCID is required')
+    elif (values.get('autonomous_database_version') != '26ai'
+          or values.get('autonomous_database_workload') != 'DW'):
+        raise ValueError('Memory requires the 26ai Lakehouse DW profile')
     domain, admin = values['identity_domain_id'], values['admin_user_ocid']
     if not domain.startswith('ocid1.domain.') or not admin.startswith('ocid1.user.'):
         raise ValueError('Stable domain and user OCIDs are required')
@@ -58,6 +77,9 @@ def settings_for(context, *, applied=False):
         objectstorage_namespace=values.get('objectstorage_namespace', ''),
         artifacts_bucket_name=values['artifacts_bucket_name'], compartment_id=context['compartment']['id'],
         agent_model_id=values['model_id'], admin_user_ocid=values['admin_user_ocid'], identity_domain_id=values['identity_domain_id'],
+        governance_operation=values.get('governance_operation', 'install'),
+        memory_database_mode=values['autonomous_database_mode'],
+        memory_database_id=values.get('autonomous_database_id') or values.get('existing_autonomous_database_ocid', ''),
         release_source={key: context.get('source', {}).get(key) for key in ('repository', 'ref', 'commit_sha')},
         deployment_id=context['deployment_id'], resource_ownership=values.get('resource_ownership', {}))
 
@@ -119,6 +141,7 @@ def preflight(context, client_factory=None):
         load_package()
         verify_administrator(client, settings.identity_domain_id, settings.admin_user_ocid,
                              require_roles=settings.aidp_mode == 'existing')
+        preflight_memory(client)
         if settings.aidp_mode == 'existing':
             verify_operator(client, settings.identity_domain_id)
             client._workspace()
@@ -133,6 +156,14 @@ def preflight(context, client_factory=None):
             'message': 'Package and selected domain identity verified; platform roles are checked after bootstrap for a new platform.'}]}
     finally:
         client.session.close()
+
+
+def _authorize_memory(client, settings, command, owned_receipt, memory_receipt):
+    from .administrators import verify_administrator
+    if (settings.aidp_mode == 'new' and command == 'install'
+            and owned_receipt is None and memory_receipt is None):
+        client.ensure_selected_admin(settings.admin_user_ocid)
+    verify_administrator(client, settings.identity_domain_id, settings.admin_user_ocid)
 
 
 def apply(context, command='install', client_factory=None, store_factory=None):
@@ -151,14 +182,15 @@ def apply(context, command='install', client_factory=None, store_factory=None):
         store = (store_factory or ReceiptStore)(client.object_storage, settings.objectstorage_namespace,
             settings.artifacts_bucket_name, settings.aidp_platform_id, workspace)
         owned_receipt, _ = store.load()
-        # A new-platform choice is bootstrap authority only, not perpetual role restoration.
-        if settings.aidp_mode == 'new' and command == 'install' and owned_receipt is None:
-            client.ensure_selected_admin(settings.admin_user_ocid)
-        verify_administrator(client, settings.identity_domain_id, settings.admin_user_ocid)
+        memory = ensure_memory(client, memory_store(client), command,
+            lambda memory_receipt: _authorize_memory(client, settings, command, owned_receipt, memory_receipt))
         operation_id = str(uuid.uuid5(uuid.NAMESPACE_URL, context['project_id'] + ':' + context['deployment_id']))
         receipt = run_operation(client, store, admin=settings.admin_user_ocid, domain=settings.identity_domain_id,
                                 operation_id=operation_id, command=command)
-        return _operation_result(receipt, workspace)
+        result = _operation_result(receipt, workspace)
+        result['outputs'].update(autonomous_database_id=memory['autonomous_database_id'],
+                                 memory_status=memory['memory_status'])
+        return result
     finally:
         client.session.close()
 
@@ -170,7 +202,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not args.context:
         parser.error('Deploy Studio context path is required')
-    result_path = os.environ.get('DEPLOY_STUDIO_RESULT')
+    result_path = os.environ.get('DEPLOY_STUDIO_OUTPUT')
     result, status = {}, 0
     try:
         context = json.loads(Path(args.context).read_text(encoding='utf-8'))

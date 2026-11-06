@@ -49,5 +49,15 @@ def test_existing_selection_has_explicit_native_identity_fields():
     assert fields["admin_user_ocid"]["options_source"] == "oci_aidp_administrators"
     assert manifest["preflight"]["requires_oci_credentials"] is True
     assert manifest["post_apply"]["requires_oci_credentials"] is True
-    assert manifest["preflight"]["secret_inputs"] == []
-    assert manifest["post_apply"]["secret_inputs"] == []
+    assert manifest["preflight"]["secret_inputs"] == ["autonomous_database_admin_password"]
+    assert manifest["post_apply"]["secret_inputs"] == ["autonomous_database_admin_password"]
+    assert {field["name"] for field in fields.values() if field.get("secret")} == {"autonomous_database_admin_password"}
+    password = fields["autonomous_database_admin_password"]
+    assert password["type"] == "password" and password["required"] is False and "default" not in password
+    assert manifest["capabilities"]["database_profile"] == "new_or_existing"
+    assert manifest["capabilities"]["existing_database_wallet"] == "none"
+    assert not {"autonomous_database_wallet_password", "wallet_file"} & fields.keys()
+    assert fields["autonomous_database_version"]["transform"] == "database_profile"
+    assert fields["autonomous_database_version"]["options"] == [{"value": "26ai:DW", "label": "Oracle AI Database 26ai · AI Lakehouse (DW)"}]
+    assert all(field["group"] == "database" for name, field in fields.items()
+               if name.startswith(("autonomous_database", "existing_autonomous")))

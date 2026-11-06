@@ -11,16 +11,17 @@ mock_provider "oci" {
 mock_provider "time" {}
 
 variables {
-  tenancy_ocid            = "ocid1.tenancy.oc1..test"
-  compartment_ocid        = "ocid1.compartment.oc1..test"
-  region                  = "us-chicago-1"
-  home_region             = "us-ashburn-1"
-  objectstorage_namespace = "testnamespace"
-  deployment_suffix       = "test1234"
-  identity_domain_id      = "ocid1.domain.oc1..test"
-  admin_user_ocid         = "ocid1.user.oc1..test"
-  artifacts_bucket_name   = "governance-test-artifacts"
-  model_id                = "ocid1.generativeaimodel.oc1.test.model"
+  tenancy_ocid                       = "ocid1.tenancy.oc1..test"
+  compartment_ocid                   = "ocid1.compartment.oc1..test"
+  region                             = "us-chicago-1"
+  home_region                        = "us-ashburn-1"
+  objectstorage_namespace            = "testnamespace"
+  deployment_suffix                  = "test1234"
+  identity_domain_id                 = "ocid1.domain.oc1..test"
+  admin_user_ocid                    = "ocid1.user.oc1..test"
+  artifacts_bucket_name              = "governance-test-artifacts"
+  model_id                           = "ocid1.generativeaimodel.oc1.test.model"
+  autonomous_database_admin_password = "TestOnlyPassword26!"
 }
 
 run "existing_resources_are_external" {

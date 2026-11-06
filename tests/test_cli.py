@@ -12,6 +12,8 @@ def context():
         'inputs': {'aidp_mode': 'existing', 'existing_ai_data_platform_ocid': 'ocid1.aidataplatform.oc1.us-chicago-1.test',
         'existing_workspace_key': '11111111-1111-4111-8111-111111111111', 'identity_domain_id': 'ocid1.domain.oc1..test',
         'admin_user_ocid': 'ocid1.user.oc1..test', 'artifacts_bucket_name': 'artifacts',
+        'autonomous_database_mode': 'existing',
+        'existing_autonomous_database_ocid': 'ocid1.autonomousdatabase.oc1.us-chicago-1.test',
         'model_id': 'ocid1.generativeaimodel.oc1.us-chicago-1.test'}}
 
 
@@ -28,6 +30,8 @@ def test_invalid_bindings_fail_before_credential_or_network_access(field, value)
 def test_preflight_verifies_selected_user_and_effective_roles(monkeypatch):
     verify = Mock()
     monkeypatch.setattr('ai_data_governance.administrators.verify_administrator', verify)
+    memory = Mock()
+    monkeypatch.setattr(cli, 'preflight_memory', memory)
     iam = Mock()
     iam.get_tenancy.return_value.data.home_region_key = 'ORD'
     iam.list_regions.return_value.data = [SimpleNamespace(key='ORD', name='us-chicago-1')]
@@ -39,6 +43,7 @@ def test_preflight_verifies_selected_user_and_effective_roles(monkeypatch):
     assert result['inputs']['home_region'] == 'us-chicago-1'
     verify.assert_called_once_with(client, 'ocid1.domain.oc1..test', 'ocid1.user.oc1..test', require_roles=True)
     client._request.assert_not_called()
+    memory.assert_called_once_with(client)
 
 
 def test_runner_pending_is_not_success_and_never_prints_provider_secrets(tmp_path, monkeypatch, capsys):
@@ -141,12 +146,14 @@ def bootstrap_context(mode='new'):
     document['terraform_outputs'] = {**document['inputs'],
         'ai_data_platform_ocid': document['inputs']['existing_ai_data_platform_ocid'],
         'workspace_key': document['inputs']['existing_workspace_key'],
+        'autonomous_database_id': document['inputs']['existing_autonomous_database_ocid'],
         'objectstorage_namespace': 'namespace',
-        'resource_ownership': {'platform': 'owned' if mode == 'new' else 'external'}}
+        'resource_ownership': {'platform': 'owned' if mode == 'new' else 'external',
+                               'memory_database': 'external'}}
     return document
 
 
-def administrator_harness(monkeypatch, *, existing_receipt):
+def administrator_harness(monkeypatch, *, existing_receipt, memory_receipt=None):
     client, store = Mock(), Mock()
     users = {'operator'}
     events = []
@@ -165,6 +172,14 @@ def administrator_harness(monkeypatch, *, existing_receipt):
     operation = Mock(return_value={'manifest': {'status': 'active', 'validation_stage': 'TEST_PENDING',
         'operation': {'operation_id': 'original-operation'}}})
     monkeypatch.setattr('ai_data_governance.lifecycle.run_operation', operation)
+    monkeypatch.setattr(cli, 'memory_store', lambda _: object())
+
+    def memory(_client, _store, _command, authorize):
+        authorize(memory_receipt)
+        return {'autonomous_database_id': 'ocid1.autonomousdatabase.oc1.us-chicago-1.test',
+                'memory_status': 'READY'}
+
+    monkeypatch.setattr(cli, 'ensure_memory', memory)
     return client, store, operation, events
 
 
@@ -215,3 +230,35 @@ def test_external_platform_never_receives_bootstrap_admin_assignment(monkeypatch
         cli.apply(bootstrap_context('existing'), client_factory=lambda _: client, store_factory=lambda *_: store)
     client.ensure_selected_admin.assert_not_called()
     operation.assert_not_called()
+
+
+def test_pending_memory_blocks_role_regrant_before_the_business_receipt_exists(monkeypatch):
+    client, store, operation, events = administrator_harness(monkeypatch, existing_receipt=None,
+        memory_receipt={'phase': 'submitted'})
+    with pytest.raises(AidpProvisionConflict, match='effective AI_DATA_PLATFORM_ADMIN'):
+        cli.apply(bootstrap_context(), client_factory=lambda _: client, store_factory=lambda *_: store)
+    client.ensure_selected_admin.assert_not_called()
+    operation.assert_not_called()
+    assert events == ['workspace', 'receipt']
+
+
+@pytest.mark.parametrize('field,value', [('autonomous_database_id', 'ocid1.autonomousdatabase.oc1..foreign'),
+                                       ('autonomous_database_mode', 'new')])
+def test_changed_memory_terraform_binding_blocks_native_access(field, value):
+    document = bootstrap_context()
+    document['terraform_outputs'][field] = value
+    factory = Mock()
+    with pytest.raises(ValueError):
+        cli.apply(document, client_factory=factory)
+    factory.assert_not_called()
+
+
+def test_ctn_output_environment_receives_the_hook_result(tmp_path, monkeypatch, capsys):
+    path, output = tmp_path / 'context.json', tmp_path / 'output.json'
+    path.write_text(json.dumps(context()))
+    expected = {'outputs': {'memory_status': 'READY'}, 'events': [], 'artifacts': []}
+    monkeypatch.setenv('DEPLOY_STUDIO_OUTPUT', str(output))
+    monkeypatch.setattr(cli, 'apply', Mock(return_value=expected))
+    assert cli.main(['apply', '--context', str(path)]) == 0
+    assert json.loads(output.read_text()) == expected
+    assert capsys.readouterr().out == ''

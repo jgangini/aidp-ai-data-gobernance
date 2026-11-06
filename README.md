@@ -14,14 +14,15 @@ Repositorio canónico: [jgangini/aidp-ai-data-gobernance](https://github.com/jga
 | Workflow de cuatro tareas | Sincroniza inventario, documenta metadatos, los publica y replica el modelo del catálogo. |
 | Recibos y copias de artefactos | Permiten reanudar operaciones y restaurar archivos propios con verificación SHA-256. |
 
-El modelo OCI Generative AI se selecciona para los agentes de Governance. Los checkpoints usan el proxy de memoria administrado por AIDP, con identidades separadas para cada agente. **Esta versión todavía no crea ni asocia Autonomous para respaldar esa memoria**; el contrato y el trabajo pendiente se describen en [memoria de agentes](docs/agent-memory.md). Las tablas Delta del catálogo no sustituyen esa base de memoria.
+El modelo OCI Generative AI se selecciona para los agentes de Governance. Los checkpoints usan el proxy de memoria administrado por AIDP, con identidades separadas para cada agente. El instalador crea o reutiliza Autonomous AI Lakehouse 26ai y habilita la memoria mediante el control plane de AIDP, con recibos para reanudar. El [contrato de memoria](docs/agent-memory.md) describe requisitos, evidencia técnica y límites de aceptación. Las tablas Delta del catálogo no sustituyen esa base de memoria.
 
 ## Instalación desde Deploy Studio
 
 1. Selecciona un [tag de release inmutable](https://github.com/jgangini/aidp-ai-data-gobernance/releases) y la operación `install`.
 2. Elige la plataforma nueva o indica la plataforma y el workspace existentes.
 3. Selecciona el Identity Domain, un administrador elegible y el modelo OCI Generative AI.
-4. Configura el bucket privado de artefactos, revisa el plan y ejecuta el flujo autorizado.
+4. Configura el bucket privado de artefactos y elige una Autonomous AI Lakehouse nueva o existente. La nueva usa el perfil 26ai/DW, cuatro ECPU y 1 TB.
+5. Proporciona la contraseña ADMIN protegida cuando deba crearse o vincularse la base, revisa el plan y ejecuta el flujo autorizado. No se requiere wallet.
 
 El operador firma las solicitudes OCI; seleccionar otro administrador no cambia esa identidad. Los recursos existentes se conservan como externos. Una instalación nueva asigna el rol elegido sólo durante su bootstrap inicial; reanudar no repone permisos revocados.
 
@@ -57,7 +58,7 @@ La validación del proyecto usa `scripts/arch-preflight.ps1` y `scripts/arch-pos
 Las releases candidatas y sus pruebas locales no acreditan conversaciones reales ni aceptación funcional en OCI. El estado técnico mantiene `TEST_PENDING`; la publicación consultiva PROD requiere su aceptación correspondiente. Sentrux conserva el baseline inicial vacío y su gate sigue fallando con tres funciones complejas heredadas, sin ciclos ni archivos concentradores.
 
 - [Contrato y operación](docs/contracts.md)
-- [Memoria de agentes: implementación y contrato pendiente](docs/agent-memory.md)
+- [Memoria de agentes: implementación y límites](docs/agent-memory.md)
 - [Releases, parámetros y hashes](docs/release.md)
 - [Desarrollo y validación](docs/development.md)
 - [Estado y evidencia de la tarea](docs/tasks/current.md)

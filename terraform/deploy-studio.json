@@ -1,59 +1,302 @@
 {
   "schema_version": 1,
   "project_id": "aidp-ai-data-governance",
-  "terraform": {"path": "terraform", "package_oci_credentials": false},
+  "terraform": {
+    "path": "terraform",
+    "package_oci_credentials": false
+  },
   "capabilities": {
-    "compartment_modes": ["new", "existing"],
+    "compartment_modes": [
+      "new",
+      "existing"
+    ],
     "default_compartment_name": "aidp-governance",
     "requires_genai_region": true,
-    "database_profile": "none",
+    "database_profile": "new_or_existing",
     "region_selection": "subscribed_compatible",
-    "regional_requirements": ["aidp", "genai_chat"]
+    "regional_requirements": [
+      "aidp",
+      "genai_chat"
+    ],
+    "existing_database_wallet": "none"
   },
   "presentation": {
     "title": "AIDP AI Data Governance",
-    "summary": "Despliega un agente de documentación y un agente de gobierno en Oracle AI Data Platform, con dieciocho tablas de catálogo y un workflow de cuatro tareas para sincronizar inventario, documentar y publicar metadatos, y replicar el modelo. Se instala en una plataforma nueva o existente con el administrador seleccionado en Deploy Studio.",
+    "summary": "Despliega dos agentes de documentación y gobierno, dieciocho tablas de catálogo y un workflow de cuatro tareas en Oracle AI Data Platform. Crea o reutiliza Autonomous AI Lakehouse 26ai para la memoria administrada de agentes y permite elegir su modelo desde Deploy Studio.",
     "image": "/assets/oci-aidp-cloud-migration-lab.png",
     "image_alt": "AIDP AI Data Governance sobre AI Data Platform Workbench; ilustración de datos, análisis e inteligencia artificial.",
-    "tags": ["AIDP", "Governance", "LangGraph", "Master Catalog"],
+    "tags": [
+      "AIDP",
+      "Governance",
+      "LangGraph",
+      "Master Catalog"
+    ],
     "href": "https://github.com/jgangini/aidp-ai-data-gobernance"
   },
   "run_steps": [
-    {"key": "queue", "label": "En cola"},
-    {"key": "credentials", "label": "Identidad y autorización"},
-    {"key": "plan", "label": "Revisar recursos"},
-    {"key": "apply", "label": "Preparar plataforma y artefactos"},
-    {"key": "artifacts", "label": "Instalar Governance y verificar recibos"},
-    {"key": "complete", "label": "Candidato TEST instalado"}
+    {
+      "key": "queue",
+      "label": "En cola"
+    },
+    {
+      "key": "credentials",
+      "label": "Identidad y autorización"
+    },
+    {
+      "key": "plan",
+      "label": "Revisar recursos"
+    },
+    {
+      "key": "apply",
+      "label": "Preparar plataforma y artefactos"
+    },
+    {
+      "key": "artifacts",
+      "label": "Instalar Governance y verificar recibos"
+    },
+    {
+      "key": "complete",
+      "label": "Candidato TEST instalado"
+    }
   ],
   "form": {
     "fields": [
-      {"name": "governance_operation", "label": "Operación de Governance", "type": "select", "required": true, "default": "install", "options": [{"value": "install", "label": "Instalar candidato"}, {"value": "resume", "label": "Reanudar la misma operación"}, {"value": "update", "label": "Actualizar instalación propia"}, {"value": "redeploy", "label": "Redesplegar instalación propia"}, {"value": "rollback", "label": "Restaurar artefactos propios previos"}], "group": "aidp_platform"},
-      {"name": "aidp_mode", "label": "Plataforma AIDP", "type": "select", "required": true, "default": "existing", "options": [{"value": "new", "label": "Crear plataforma"}, {"value": "existing", "label": "Usar plataforma existente"}], "group": "aidp_platform"},
-      {"name": "existing_ai_data_platform_ocid", "label": "Plataforma AIDP existente", "type": "select", "options_source": "oci_aidp_platforms", "required": true, "visible_when": {"field": "aidp_mode", "equals": "existing"}, "pattern": "^ocid1\\.aidataplatform\\..+$", "group": "aidp_platform"},
-      {"name": "existing_workspace_key", "label": "Clave del workspace existente", "type": "text", "required": true, "visible_when": {"field": "aidp_mode", "equals": "existing"}, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "group": "aidp_platform"},
-      {"name": "identity_domain_id", "label": "Identity Domain", "type": "select", "required": true, "options_source": "oci_identity_domains", "pattern": "^ocid1\\.domain\\..+$", "group": "identity"},
-      {"name": "admin_user_ocid", "label": "Administrador AIDP elegible", "type": "select", "required": true, "options_source": "oci_aidp_administrators", "group": "identity"},
-      {"name": "artifacts_mode", "label": "Bucket de artefactos", "type": "select", "required": true, "default": "existing", "options": [{"value": "new", "label": "Crear bucket"}, {"value": "existing", "label": "Usar bucket existente"}], "group": "artifacts"},
-      {"name": "artifacts_bucket_name", "label": "Nombre del bucket de artefactos", "type": "text", "required": true, "pattern": "^[A-Za-z0-9._-]{1,128}$", "min_length": 1, "max_length": 128, "group": "artifacts"},
-      {"name": "model_id", "label": "Modelo de los agentes (Agent Flow)", "type": "select", "required": true, "options_source": "oci_genai_chat_models", "group": "enterprise_ai"}
+      {
+        "name": "governance_operation",
+        "label": "Operación de Governance",
+        "type": "select",
+        "required": true,
+        "default": "install",
+        "options": [
+          {
+            "value": "install",
+            "label": "Instalar candidato"
+          },
+          {
+            "value": "resume",
+            "label": "Reanudar la misma operación"
+          },
+          {
+            "value": "update",
+            "label": "Actualizar instalación propia"
+          },
+          {
+            "value": "redeploy",
+            "label": "Redesplegar instalación propia"
+          },
+          {
+            "value": "rollback",
+            "label": "Restaurar artefactos propios previos"
+          }
+        ],
+        "group": "aidp_platform"
+      },
+      {
+        "name": "aidp_mode",
+        "label": "Plataforma AIDP",
+        "type": "select",
+        "required": true,
+        "default": "existing",
+        "options": [
+          {
+            "value": "new",
+            "label": "Crear plataforma"
+          },
+          {
+            "value": "existing",
+            "label": "Usar plataforma existente"
+          }
+        ],
+        "group": "aidp_platform"
+      },
+      {
+        "name": "existing_ai_data_platform_ocid",
+        "label": "Plataforma AIDP existente",
+        "type": "select",
+        "options_source": "oci_aidp_platforms",
+        "required": true,
+        "visible_when": {
+          "field": "aidp_mode",
+          "equals": "existing"
+        },
+        "pattern": "^ocid1\\.aidataplatform\\..+$",
+        "group": "aidp_platform"
+      },
+      {
+        "name": "existing_workspace_key",
+        "label": "Clave del workspace existente",
+        "type": "text",
+        "required": true,
+        "visible_when": {
+          "field": "aidp_mode",
+          "equals": "existing"
+        },
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "group": "aidp_platform"
+      },
+      {
+        "name": "identity_domain_id",
+        "label": "Identity Domain",
+        "type": "select",
+        "required": true,
+        "options_source": "oci_identity_domains",
+        "pattern": "^ocid1\\.domain\\..+$",
+        "group": "identity"
+      },
+      {
+        "name": "admin_user_ocid",
+        "label": "Administrador AIDP elegible",
+        "type": "select",
+        "required": true,
+        "options_source": "oci_aidp_administrators",
+        "group": "identity"
+      },
+      {
+        "name": "artifacts_mode",
+        "label": "Bucket de artefactos",
+        "type": "select",
+        "required": true,
+        "default": "existing",
+        "options": [
+          {
+            "value": "new",
+            "label": "Crear bucket"
+          },
+          {
+            "value": "existing",
+            "label": "Usar bucket existente"
+          }
+        ],
+        "group": "artifacts"
+      },
+      {
+        "name": "artifacts_bucket_name",
+        "label": "Nombre del bucket de artefactos",
+        "type": "text",
+        "required": true,
+        "pattern": "^[A-Za-z0-9._-]{1,128}$",
+        "min_length": 1,
+        "max_length": 128,
+        "group": "artifacts"
+      },
+      {
+        "name": "model_id",
+        "label": "Modelo de los agentes (Agent Flow)",
+        "type": "select",
+        "required": true,
+        "options_source": "oci_genai_chat_models",
+        "group": "enterprise_ai"
+      },
+      {
+        "name": "autonomous_database_mode",
+        "label": "Oracle AI Database para memoria",
+        "type": "select",
+        "required": true,
+        "default": "new",
+        "options": [
+          {
+            "value": "new",
+            "label": "Crear Autonomous AI Lakehouse"
+          },
+          {
+            "value": "existing",
+            "label": "Usar Autonomous existente"
+          }
+        ],
+        "group": "database"
+      },
+      {
+        "name": "autonomous_database_version",
+        "label": "Perfil de memoria",
+        "type": "select",
+        "required": true,
+        "default": "26ai:DW",
+        "transform": "database_profile",
+        "options": [
+          {
+            "value": "26ai:DW",
+            "label": "Oracle AI Database 26ai · AI Lakehouse (DW)"
+          }
+        ],
+        "visible_when": {
+          "field": "autonomous_database_mode",
+          "equals": "new"
+        },
+        "group": "database"
+      },
+      {
+        "name": "existing_autonomous_database_ocid",
+        "label": "OCID de Autonomous AI Lakehouse existente",
+        "type": "text",
+        "required": true,
+        "pattern": "^ocid1\\.autonomousdatabase\\..+$",
+        "visible_when": {
+          "field": "autonomous_database_mode",
+          "equals": "existing"
+        },
+        "group": "database"
+      },
+      {
+        "name": "autonomous_database_admin_password",
+        "label": "Contraseña ADMIN para crear o vincular memoria",
+        "type": "password",
+        "required": false,
+        "secret": true,
+        "min_length": 12,
+        "max_length": 30,
+        "group": "database"
+      }
     ]
   },
-  "outputs": ["ai_data_platform_ocid", "workspace_key", "workspace_name", "aidp_mode", "artifacts_bucket_name", "artifacts_mode", "objectstorage_namespace", "compartment_ocid", "region", "identity_domain_id", "admin_user_ocid", "model_id", "resource_ownership"],
+  "outputs": [
+    "ai_data_platform_ocid",
+    "workspace_key",
+    "workspace_name",
+    "aidp_mode",
+    "artifacts_bucket_name",
+    "artifacts_mode",
+    "objectstorage_namespace",
+    "compartment_ocid",
+    "region",
+    "identity_domain_id",
+    "admin_user_ocid",
+    "model_id",
+    "resource_ownership",
+    "autonomous_database_id",
+    "autonomous_database_mode",
+    "memory_status"
+  ],
   "artifacts": [],
   "preflight": {
     "entrypoint": "terraform/m_preflight.py",
     "timeout_seconds": 300,
     "requires_oci_credentials": true,
-    "secret_inputs": [],
-    "output_inputs": ["home_region"],
-    "runtime_fields": [{"name": "home_region", "label": "Región principal de la tenancy", "type": "text", "required": true, "pattern": "^[a-z]{2}-[a-z0-9-]+-[0-9]+$"}]
+    "secret_inputs": [
+      "autonomous_database_admin_password"
+    ],
+    "output_inputs": [
+      "home_region"
+    ],
+    "runtime_fields": [
+      {
+        "name": "home_region",
+        "label": "Región principal de la tenancy",
+        "type": "text",
+        "required": true,
+        "pattern": "^[a-z]{2}-[a-z0-9-]+-[0-9]+$"
+      }
+    ]
   },
   "post_apply": {
     "entrypoint": "terraform/hooks/post_apply.py",
-    "include_paths": ["src/ai_data_governance", "requirements.txt"],
+    "include_paths": [
+      "src/ai_data_governance",
+      "requirements.txt"
+    ],
     "timeout_seconds": 3600,
     "requires_oci_credentials": true,
-    "secret_inputs": []
+    "secret_inputs": [
+      "autonomous_database_admin_password"
+    ]
   }
 }

@@ -1,11 +1,11 @@
-# Release privada y handoff a Deploy Studio
+# Releases y handoff a Deploy Studio
 
-Producto `aidp-ai-data-governance`. Release de prueba vigente [`v0.2.0-rc.3`](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.3): implementación 0.2.0 con recuperación de artefactos; aceptación OCI todavía pendiente. La visibilidad se conserva privada y el tag se congela en el SHA probado por CI. Deploy Studio obtiene el código de ese tag resuelto a SHA; el módulo no descarga assets con PAT ni tiene VM de portal.
+Producto `aidp-ai-data-governance`, nombre visible AIDP AI Data Governance, repositorio público `jgangini/aidp-ai-data-gobernance`. Candidata `v0.3.0-rc.1`: memoria administrada sobre Autonomous AI Lakehouse 26ai, formulario agrupado y URL canónica nueva. La aceptación OCI permanece detenida por el usuario. El tag se fija al código validado; no se mueven ni reemplazan los tags/assets históricos. Deploy Studio obtiene ese tag resuelto a SHA; no se necesita PAT para descargar código público ni existe VM de portal.
 
 ## Conjunto exacto de assets
 
 - `aidp-ai-data-governance-source.zip`: `git archive` del commit exacto, con raíz única `source/`; contiene Terraform, hooks, requirements y fuentes AIDP.
-- `aidp_ai_data_governance-0.2.0-py3-none-any.whl`: paquete importable para distribución y verificación independiente.
+- `aidp_ai_data_governance-0.3.0-py3-none-any.whl`: paquete importable para distribución y verificación independiente.
 - `aidp-governance-release.json`: schema 1 de evidencia del producto, repositorio/tag/commit y SHA-256/tamaño de los dos payloads. No sustituye `terraform/deploy-studio.json` ni agrega campos a su schema 1.
 - `SHA256SUMS`: hashes de ZIP, wheel y manifiesto de evidencia. No se incluyen `.oci`, state, recibos reales, logs privados ni claves.
 
@@ -26,6 +26,10 @@ La coordinación es el único dueño del Browser, colas y mutaciones OCI. Selecc
 | `artifacts_mode` | `new` o `existing` según la selección explícita y validada |
 | `artifacts_bucket_name` | nombre único acordado del bucket de artefactos; no un bucket de datos medallion |
 | `model_id` | modelo OCI existente elegido en el selector, autorizado para el destino |
+| `autonomous_database_mode` | `new` o `existing`, base de memoria administrada |
+| `autonomous_database_version` | perfil nuevo `26ai:DW`; el runner expande versión/workload |
+| `existing_autonomous_database_ocid` | OCID exacto de la Lakehouse AVAILABLE/26ai/DW, sólo en existing |
+| `autonomous_database_admin_password` | secreto protegido para crear o habilitar memoria; vacío permitido al verificar una asociación propia existing ya READY |
 
 El runner resuelve tenancy, compartment, region, `objectstorage_namespace`, `deployment_suffix` y credenciales; preflight devuelve `home_region`. Con new, la plataforma se llama `aidp-governance-<deployment_suffix>` y su workspace `governance-<deployment_suffix>`.
 
@@ -35,7 +39,7 @@ Para reanudar Governance: mismo deployment_id, tag/SHA, identidad y contexto. Pa
 
 ## Gates y límites
 
-Release privada de prueba no implica aceptación de conversaciones ni de ejecución/schedule real. El instalador puede devolver código 3 mientras una fase nativa está pendiente: continuar la misma operación, no crear otro deployment o recurso para forzar éxito. Una recuperación correcta de un update fallido devuelve código 1 y `update_failed_restored`; conservar el fallo original.
+Una candidata publicada no implica aceptación de conversaciones ni de ejecución/schedule real. El instalador puede devolver código 3 mientras una fase nativa está pendiente: continuar la misma operación, no crear otro deployment o recurso para forzar éxito. Una recuperación correcta de un update fallido devuelve código 1 y `update_failed_restored`; conservar el fallo original.
 
 El rollback cubre artefactos propios y refresh, no datos. Se bloquea ante esquema/storage/modelo incompatible, blobs corruptos, identidad ajena, una nueva ejecución previa al restore o falta de evidencia. Revocaciones no se restauran al Resume. No hay borrado, transferencia de state ni publicación consultiva PROD. Sentrux conserva su referencia vacía fallida, con solo tres funciones complejas heredadas y ninguna nueva: no se declara gate global aprobado.
 
@@ -93,4 +97,14 @@ El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se co
 
 ## RC4: nombre canónico público y formulario agrupado
 
-La release prevista `v0.2.0-rc.4` utiliza `jgangini/aidp-ai-data-gobernance` y conserva project_id/nombre visible. README español ampliado, URLs canónicas actualizadas, modelo en enterprise_ai y grupos genéricos de plataforma/identidad/artefactos del schema 1. La plataforma existente se elige mediante `oci_aidp_platforms`, conservando su patrón y workspace explícito. [Auditoría previa a publicación](publication.md). Autonomous/memoria es un pendiente separado según [su contrato](agent-memory.md); no se anuncian campos sin consumidor ni se altera el runtime de los agentes. Los tags anteriores se conservan.
+El checkpoint público `c9b359f` utilizó `jgangini/aidp-ai-data-gobernance` y conserva project_id/nombre visible. README español ampliado, URLs canónicas actualizadas, modelo en enterprise_ai y grupos genéricos de plataforma/identidad/artefactos del schema 1. La plataforma existente se elige mediante `oci_aidp_platforms`, conservando su patrón y workspace explícito. [Auditoría previa a publicación](publication.md). Esa fase documentó Autonomous pendiente; no se publicó RC4. La candidata 0.3.0 incorpora su implementación según [el contrato de memoria](agent-memory.md), sin alterar los programas de agentes. Los tags anteriores se conservan.
+
+## Memoria 0.3.0 y controles de aceptación
+
+El SDK de control plane está fijado en 2.189.0. Terraform crea o reutiliza la base exacta sin adoptar la externa; el hook habilita AI con recibo CAS/lease, ETag y work request propios. No se requiere wallet ni se cambia la memoria por SQL directo. El secreto se declara únicamente en preflight/post_apply y el hook usa `DEPLOY_STUDIO_OUTPUT`.
+
+No reutilizar una plataforma READY ajena basándose sólo en ese estado. La primera asociación es evidencia indirecta del request propio y READY; el GET no publica el OCID de la base. Verificaciones posteriores fijan el ETag y se bloquean ante deriva. ACK perdido sin work request verificable queda Pending sin reenvío automático. No se deshabilita AI ni se cambia de base durante mantenimiento o rollback. La continuidad/aislamiento de sesiones sigue pendiente de aceptación nativa autorizada.
+
+El formulario conserva schema 1, los grupos del renderer CTN y sus fuentes reales de plataforma/dominio/administrador/modelo. Tiene trece campos. El parser e input preparation reales aprobaron el perfil 26ai:DW, el secreto opcional para existing READY y la política sin wallet. El validador puro de wallet se ejecutó aislado desde la función CTN: ninguna wallet requerida y una wallet innecesaria rechazada. No se declara importación completa del módulo API local: el entorno Governance carece de FastAPI y el entorno CTN local usa Python 3.11 frente a sintaxis 3.12 de su inventario. La coordinación conserva sus checks del consumidor y retomará Browser después.
+
+Sentrux conserva el baseline vacío fallido. Las responsabilidades nuevas de control plane y sus pruebas cambian la calidad medida de 0.7016 a 0.7005; acoplamiento redondeado 0.07, tres funciones complejas heredadas, cero ciclos/god files. No se agregan funciones complejas ni se resetea la referencia. El gate global sigue sin aprobación; el coste arquitectónico del nuevo controlador queda explícito para revisión.

@@ -38,8 +38,15 @@ output "model_id" {
 }
 output "resource_ownership" {
   value = {
-    platform  = var.aidp_mode == "new" ? "owned" : "external"
-    workspace = var.aidp_mode == "new" ? "owned" : "external"
-    artifacts = var.artifacts_mode == "new" ? "owned" : "external"
+    platform        = var.aidp_mode == "new" ? "owned" : "external"
+    workspace       = var.aidp_mode == "new" ? "owned" : "external"
+    artifacts       = var.artifacts_mode == "new" ? "owned" : "external"
+    memory_database = var.autonomous_database_mode == "new" ? "owned" : "external"
   }
+}
+output "autonomous_database_id" {
+  value = local.autonomous_database_id
+}
+output "autonomous_database_mode" {
+  value = var.autonomous_database_mode
 }

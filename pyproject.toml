@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aidp-ai-data-governance"
-version = "0.2.0"
+version = "0.3.0"
 description = "Independent AIDP Governance agents, native resources and resumable installer"
 requires-python = ">=3.11"
-dependencies = ["pydantic==2.11.10", "oci==2.160.3", "httpx==0.28.1", "langgraph==1.2.16", "langchain-core==1.7.3"]
+dependencies = ["pydantic==2.11.10", "oci==2.189.0", "httpx==0.28.1", "langgraph==1.2.16", "langchain-core==1.7.3"]
 
 [project.urls]
 Repository = "https://github.com/jgangini/aidp-ai-data-gobernance"

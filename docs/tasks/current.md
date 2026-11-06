@@ -1,6 +1,6 @@
 # Separación Governance: recuperación de artefactos
 
-Fecha de trabajo: 2026-11-05 (America/Lima). Fuente congelada: `3c82617fd298933995e954955841007253cc0985`. Repositorio privado: https://github.com/jgangini/aidp-ai-data-gobernance, rama main.
+Fecha de trabajo: 2026-11-05 (America/Lima). Fuente congelada: `3c82617fd298933995e954955841007253cc0985`. Repositorio público: https://github.com/jgangini/aidp-ai-data-gobernance, rama main.
 
 El código anterior `868387f` y su cierre documental `174e7af` están subidos. [CI anterior 42141257951](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42141257951) aprobó 1.740 tests y cinco Terraform; esa evidencia no sustituye esta continuación. El contrato de recuperación está implementado y la suite local completa aprobó 1.836 tests. Commit `168273bbb8c4f143602aecea71a1d8552a995acf` subido; [CI 42146959451](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42146959451) aprobó 1.836 tests Python en 246.80 s, compilación y cinco tests Terraform. La [prerelease privada e inmutable v0.2.0-rc.1](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.1) está publicada para su prueba real desde Deploy Studio; los cuatro assets descargados coinciden con sus hashes. Publicación autorizada por coordinación. Solo coordinación creará un AIDP y agregará los demás módulos sobre ese mismo; este chat no opera OCI.
 
@@ -71,3 +71,7 @@ Solicitud explícita: dominio listado en Deploy Studio mediante `oci_identity_do
 ## Nombre público, README y memoria
 
 Solicitud explícita: GitHub `jgangini/aidp-ai-data-gobernance` (con b), público, README español; conservar project_id técnico. Nombre/público y nueva release en preparación, con auditoría del historial independiente. URLs canónicas y metadata de paquete actualizadas, grupos genéricos CTN schema 1 y selector real de plataformas existentes. Runtime de agentes intacto; el modelo Agent Flow ya pertenece a Governance. Aprovisionamiento/asociación Autonomous pendiente: el SDK fijado no soporta la API y el GET publicado no acredita OCID asociado. [Contrato y fronteras](../agent-memory.md). Sin campos SQL decorativos ni compatibilidad legacy, sin OCI/APPLY/Browser/Docker.
+
+## Memoria efectiva: candidata 0.3.0
+
+Nombre/visibilidad/README completados en c9b359f; acceso anónimo confirmado, tags previos conservados. Continuación solicitada: Terraform crea/reutiliza Lakehouse 26ai/DW y el hook habilita memoria con SDK 2.189.0, lease/recibo CAS y request propio. Sin wallet/SQL directo. Se corrige salida del hook al contrato real CTN DEPLOY_STUDIO_OUTPUT. Modelo Agent Flow conserva su consumidor Governance. Guardas para READY ajeno, incertidumbre sin resend, revisión/identidad/workrequest, asignación de rol inicial con ambos recibos ausentes y mantenimiento sin cambios de memoria. Evidencia de asociación indirecta: no se inventa lectura del OCID asociado; aceptación nativa detenida. [Contrato de memoria](../agent-memory.md). Checks finales y release v0.3.0-rc.1 en preparación; RC4 público sólo quedó como artefacto candidato local, no fue publicado.
