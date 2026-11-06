@@ -16,7 +16,7 @@ El bucket de artefactos debe ser privado. Los recibos requieren `OBJECT_READ` y 
 
 | Recurso | `new` | `existing` |
 | --- | --- | --- |
-| AIDP | Crea `aidp-governance-<deployment_suffix>` y su workspace `governance-<deployment_suffix>`. | Usa la plataforma seleccionada y el UUID exacto del workspace; conserva ambos como externos. |
+| AIDP | Crea la plataforma con `New AIDP name` (valor inicial `aidp_governance`) y su workspace `governance-<deployment_suffix>`. | Usa la plataforma seleccionada y el UUID exacto del workspace; conserva ambos como externos. |
 | Artefactos | Crea un bucket privado con versionado y `prevent_destroy`. | Usa el bucket indicado sin asumir su propiedad. |
 | Memoria | Crea Lakehouse 26ai/DW, cuatro ECPU, 1 TB, licencia incluida, mTLS, autoscaling desactivado y `prevent_destroy`. | Lee el OCID exacto y exige AVAILABLE, versión 26ai y workload DW; Terraform no asume su propiedad ni cambia su configuración. |
 
@@ -29,6 +29,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | Campo | Uso y condición |
 | --- | --- |
 | `aidp_mode` | `Services mode`: `Create new AIDP` (`new`) o `Use existing AIDP` (`existing`); valor inicial `new`. |
+| `new_aidp_name` | `New AIDP name`: texto junto a `Services mode`, obligatorio y visible en new; valor inicial `aidp_governance`. Se envía a Terraform como nombre visible de la plataforma creada. |
 | `existing_ai_data_platform_ocid` | Selector de plataformas AIDP; obligatorio y visible en existing. |
 | `existing_workspace_key` | `Existing workspace`: selector `oci_aidp_workspaces` de workspaces reales de `existing_ai_data_platform_ocid`; conserva su UUID canónico. Obligatorio y visible en existing. |
 | `identity_domain_id` | Dominio seleccionado desde `oci_identity_domains`; se guarda su OCID. |
@@ -36,7 +37,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `artifacts_mode` | `Artifacts bucket mode`: `Create new bucket` (`new`) o `Use existing bucket` (`existing`); valor inicial `existing`. |
 | `artifacts_bucket_name` | `New artifacts bucket name`: nombre explícito, obligatorio y visible en new. Preflight también devuelve en este binding el nombre canónico cuando se selecciona un bucket existente. |
 | `artifacts_existing_bucket_name` | `Existing artifacts bucket`: selector `oci_active_buckets` por nombre exacto; obligatorio y visible en existing. |
-| `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`; valor inicial `xai.grok-4.7` (Grok 4.7). Debe seguir disponible en la región seleccionada. |
+| `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`; selección inicial por el nombre `xai.grok-4.7` (Grok 4.7). CTN lo resuelve al ID regional real, que debe seguir disponible en la región seleccionada. |
 | `autonomous_database_mode` | `Database mode`: `Create new database` (`new`) o `Use existing database` (`existing`); valor inicial `new`. |
 | `autonomous_database_version` | `Database profile`, sólo en new: perfil `26ai:DW`; el runner produce versión `26ai` y workload `DW`. |
 | `existing_autonomous_database_ocid` | `Existing Autonomous Database`: selector `oci_autonomous_databases`, visible y obligatorio en existing; conserva el OCID exacto de la Lakehouse compatible. |
@@ -46,7 +47,9 @@ La UI agrupa plataforma en `aidp_platform`, dominio/administrador en `identity`,
 
 Las etiquetas, opciones y etapas del formulario están en inglés. La documentación mantiene el español. Seleccionar un bucket o una base existentes no transfiere su propiedad ni acredita los permisos; los hooks conservan sus verificaciones.
 
-El modelo usa el ID exacto devuelto por el inventario. La versión mostrada en el label no se concatena al ID: Grok 4.7 usa `xai.grok-4.7`. Los ensambladores admiten ese ID de servicio verificado y los OCID de modelo ya soportados; conservan las validaciones de compartimento y destino. El valor inicial no cambia por sí mismo el modelo de una instalación existente.
+El nombre nuevo admite entre 1 y 255 caracteres: empieza por letra ASCII o número y permite letras ASCII, números, espacios, puntos, guiones y guiones bajos. Es un nombre visible, no una selección por identidad: existing continúa usando el OCID elegido. Los nombres internos de políticas, memoria y workspace conservan su sufijo de despliegue.
+
+El modelo configurado usa el ID regional devuelto por el inventario. `xai.grok-4.7` es el nombre usado para resolver la selección inicial por coincidencia única; la versión mostrada en el label no se concatena al ID. Se conservan las validaciones de compartimento y destino. El valor inicial no cambia por sí mismo el modelo de una instalación existente.
 
 ### Cuándo proporcionar ADMIN
 

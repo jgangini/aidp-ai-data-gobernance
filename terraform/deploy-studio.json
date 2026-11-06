@@ -77,7 +77,24 @@
             "label": "Use existing AIDP"
           }
         ],
-        "group": "aidp_platform"
+        "group": "aidp_platform",
+        "span": 1
+      },
+      {
+        "name": "new_aidp_name",
+        "label": "New AIDP name",
+        "type": "text",
+        "required": true,
+        "default": "aidp_governance",
+        "min_length": 1,
+        "max_length": 255,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._ -]{0,254}$",
+        "span": 1,
+        "group": "aidp_platform",
+        "visible_when": {
+          "field": "aidp_mode",
+          "equals": "new"
+        }
       },
       {
         "name": "existing_ai_data_platform_ocid",
