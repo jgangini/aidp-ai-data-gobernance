@@ -2,7 +2,7 @@
 
 Fecha de trabajo: 2026-11-05 (America/Lima). Fuente congelada: `3c82617fd298933995e954955841007253cc0985`. Repositorio privado: https://github.com/jgangini/aidp-ai_data_governance, rama main.
 
-El código anterior `868387f` y su cierre documental `174e7af` están subidos. [CI anterior 42141257951](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42141257951) aprobó 1.740 tests y cinco Terraform; esa evidencia no sustituye esta continuación. El contrato de recuperación está implementado y la suite local completa aprobó 1.836 tests. Nuevo push/CI y release privada `v0.2.0-rc.1` en preparación, autorizados por coordinación para su prueba real desde Deploy Studio. Solo coordinación creará un AIDP y agregará los demás módulos sobre ese mismo; este chat no opera OCI.
+El código anterior `868387f` y su cierre documental `174e7af` están subidos. [CI anterior 42141257951](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42141257951) aprobó 1.740 tests y cinco Terraform; esa evidencia no sustituye esta continuación. El contrato de recuperación está implementado y la suite local completa aprobó 1.836 tests. Commit `168273bbb8c4f143602aecea71a1d8552a995acf` subido; [CI 42146959451](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42146959451) aprobó 1.836 tests Python en 246.80 s, compilación y cinco tests Terraform. La [prerelease privada e inmutable v0.2.0-rc.1](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.1) está publicada para su prueba real desde Deploy Studio; los cuatro assets descargados coinciden con sus hashes. Publicación autorizada por coordinación. Solo coordinación creará un AIDP y agregará los demás módulos sobre ese mismo; este chat no opera OCI.
 
 ## Contrato implementado
 
@@ -58,4 +58,4 @@ El gate general **continúa fallando** frente al vacío (0 → 3 y aumento de ac
 
 ## Evidencia local
 
-`.local/preflight-recovery.txt`, `.local/recovery-first.txt`, `.local/artifact-recovery-2.txt`, `.local/recovery-integrated.txt`, `.local/cutover-recovery.txt`, `.local/sentrux-recovery-candidate.txt`, `.local/postflight-recovery-final.txt`. Los intentos intermedios quedan invalidados cuando cambió el código; no se presentan como cierre. Falta registrar el SHA/CI y assets publicados después del push. No se ejecutó inferencia, actor pagado ni APPLY por este chat.
+`.local/preflight-recovery.txt`, `.local/recovery-first.txt`, `.local/artifact-recovery-2.txt`, `.local/recovery-integrated.txt`, `.local/cutover-recovery.txt`, `.local/sentrux-recovery-candidate.txt`, `.local/postflight-recovery-final.txt`. Los intentos intermedios quedan invalidados cuando cambió el código; no se presentan como cierre. SHA/CI y assets publicados registrados en [contrato de release](../release.md); el cierre posterior solo cambia documentación. El tag sigue fijado al código probado. No se ejecutó inferencia, actor pagado ni APPLY por este chat.
