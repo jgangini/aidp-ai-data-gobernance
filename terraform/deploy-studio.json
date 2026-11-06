@@ -11,8 +11,10 @@
     "regional_requirements": ["aidp", "genai_chat"]
   },
   "presentation": {
-    "title": "AI Data Governance",
-    "summary": "Instala dos agentes AIDP en TEST, dieciocho tablas y un workflow documental. La instalación no acredita aceptación funcional ni publica el agente consultivo en producción.",
+    "title": "AIDP AI Data Governance",
+    "summary": "Despliega un agente de documentación y un agente de gobierno en Oracle AI Data Platform, con dieciocho tablas de catálogo y un workflow de cuatro tareas para sincronizar inventario, documentar y publicar metadatos, y replicar el modelo. Se instala en una plataforma nueva o existente con el administrador seleccionado en Deploy Studio.",
+    "image": "/assets/oci-aidp-cloud-migration-lab.png",
+    "image_alt": "AIDP AI Data Governance sobre AI Data Platform Workbench; ilustración de datos, análisis e inteligencia artificial.",
     "tags": ["AIDP", "Governance", "LangGraph", "Master Catalog"],
     "href": "https://github.com/jgangini/aidp-ai_data_governance"
   },

@@ -59,3 +59,7 @@ El gate general **continúa fallando** frente al vacío (0 → 3 y aumento de ac
 ## Evidencia local
 
 `.local/preflight-recovery.txt`, `.local/recovery-first.txt`, `.local/artifact-recovery-2.txt`, `.local/recovery-integrated.txt`, `.local/cutover-recovery.txt`, `.local/sentrux-recovery-candidate.txt`, `.local/postflight-recovery-final.txt`. Los intentos intermedios quedan invalidados cuando cambió el código; no se presentan como cierre. SHA/CI y assets publicados registrados en [contrato de release](../release.md); el cierre posterior solo cambia documentación. El tag sigue fijado al código probado. No se ejecutó inferencia, actor pagado ni APPLY por este chat.
+
+## Corrección de ficha: RC2
+
+Solicitud explícita del usuario: nombre visible «AIDP AI Data Governance», imagen real y descripción del despliegue. Cambio acotado a presentation y documentación; no cambia hooks, Terraform, permisos ni operaciones. Se reutiliza el asset público de CTN `/assets/oci-aidp-cloud-migration-lab.png`, inspeccionado como imagen existente. El consumidor usa `<img src>` del mismo origen; no requiere acceso público al repo ni un endpoint nuevo. Preflight vuelve a fallar por el gate heredado. Release nueva prevista `v0.2.0-rc.2`; RC1 permanece inmutable.

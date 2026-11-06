@@ -54,3 +54,9 @@ El rollback cubre artefactos propios y refresh, no datos. Se bloquea ante esquem
 | `SHA256SUMS` | 309 | `7467359073e9a26af683aed078c485d05f0e5468c9dd09981bc734aac8f7b75e` |
 
 La CI no incluye el gate arquitectónico: Sentrux local conserva el fallo frente al baseline vacío, tres funciones complejas heredadas y ninguna nueva frente al extracto congelado. Véase la atribución en [estado de la tarea](tasks/current.md). La aceptación nativa no se sustituye con esta publicación.
+
+## RC2: ficha de presentación
+
+`v0.2.0-rc.2` incorpora el nombre visible exacto «AIDP AI Data Governance», la descripción de los dos agentes, las dieciocho tablas y las cuatro tareas, y la imagen de plataforma ya disponible en CTN. Ruta: `/assets/oci-aidp-cloud-migration-lab.png`; usa el mismo contrato de imagen pública local que Starter Kits, sin URL privada de GitHub ni token en el navegador. El asset fue inspeccionado y el coordinador confirmó esa ruta. Es ilustración de plataforma compartida, no evidencia del despliegue.
+
+El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se conserva byte por byte; el ZIP y el manifiesto de evidencia identifican el nuevo commit. La aceptación UI/OCI sigue a cargo de coordinación. RC1 permanece inmutable.
