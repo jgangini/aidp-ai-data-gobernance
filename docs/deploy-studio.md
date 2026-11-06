@@ -1,6 +1,6 @@
 # Instalación con Deploy Studio
 
-Deploy Studio ejecuta Terraform y los hooks del paquete. Governance usa `project_id=aidp-ai-data-governance`, nombre visible AIDP AI Data Governance y [repositorio público](https://github.com/jgangini/aidp-ai-data-gobernance). El contrato del formulario está en [`terraform/deploy-studio.json`](../terraform/deploy-studio.json), schema 1.
+Deploy Studio ejecuta Terraform y los hooks del paquete. Governance usa `project_id=aidp-ai-data-governance`, nombre visible AIDP AI Data Governance y [repositorio público](https://github.com/jgangini/aidp-ai-data-gobernance). El contrato del formulario está en [`terraform/deploy-studio.json`](../terraform/deploy-studio.json), schema 2.
 
 ## Preparar el destino
 
@@ -43,7 +43,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `existing_autonomous_database_ocid` | `Existing Autonomous Database`: selector `oci_autonomous_databases`, visible y obligatorio en existing; conserva el OCID exacto de la Lakehouse compatible. |
 | `autonomous_database_admin_password` | `Database admin password`: secreto sin valor predeterminado. Su obligatoriedad efectiva depende de la ruta de plataforma/base y de la asociación registrada. |
 
-La UI agrupa plataforma en `aidp_platform`, dominio/administrador en `identity`, bucket en `artifacts`, modelo en `enterprise_ai` y Autonomous en `database`. El renderer común de CTN controla presentación y orden. El formulario instala con la operación predeterminada `install`; no ofrece un selector de mantenimiento. Los comandos administrativos y de recuperación permanecen disponibles según el [contrato de operación](contracts.md#operaciones).
+`form.groups` fija el orden, título y ancho de los elementos: credenciales, servicios, identidad, plataforma, modelo, artefactos y base. En servicios, `OCI Region` ocupa una fila completa antes del modo y nombre de compartimento. El renderer común de CTN presenta esa disposición declarada. El formulario instala con la operación predeterminada `install`; no ofrece un selector de mantenimiento. Los comandos administrativos y de recuperación permanecen disponibles según el [contrato de operación](contracts.md#operaciones).
 
 Las etiquetas, opciones y etapas del formulario están en inglés. La documentación mantiene el español. Seleccionar un bucket o una base existentes no transfiere su propiedad ni acredita los permisos; los hooks conservan sus verificaciones.
 
@@ -60,7 +60,7 @@ El campo es opcional en el manifiesto, pero no en todas las ejecuciones:
 - Una habilitación nueva o un reintento admitido necesita ADMIN para el control plane.
 - Puede omitirse al verificar plataforma y base existentes con asociación propia READY compatible, sin necesidad de habilitar AI.
 
-La contraseña tiene entre 12 y 30 caracteres. La validación Terraform exige mayúscula, minúscula y número, y rechaza comillas o la palabra admin. Se entrega mediante secretos protegidos; no llega a los agentes. No se requiere wallet ni contraseña de wallet. Consulta [memoria](agent-memory.md) para las condiciones completas.
+La contraseña tiene entre 12 y 30 caracteres. La validación Terraform exige mayúscula, minúscula y número, y rechaza comillas o la palabra admin. El formulario ofrece generar una contraseña sólo al crear una base nueva; con una base existente se introduce la credencial correspondiente cuando la ruta la exige. Se entrega mediante secretos protegidos; no llega a los agentes. No se requiere wallet ni contraseña de wallet. Consulta [memoria](agent-memory.md) para las condiciones completas.
 
 ## Ejecutar una instalación
 
@@ -87,3 +87,7 @@ Usa las salidas finales del post-apply, no únicamente las iniciales de Terrafor
 Otros productos pueden recibir el AIDP y workspace verificados en su modo existente. No deben crear otra plataforma ni copiar state para agregarse a ella. Compartir AIDP no transfiere propiedad de recursos Governance.
 
 `TEST_PENDING` y READY técnico no acreditan conversaciones, persistencia de sesiones ni aceptación funcional OCI. La publicación consultiva PROD no está implementada. Para mantenimiento consulta [operación](contracts.md).
+
+## Formulario declarativo de Deploy Studio
+
+`terraform/deploy-studio.json` utiliza `schema_version: 2`. `form.groups` declara los títulos y el orden de los grupos; cada lista `items` fija el orden de campos, archivos y controles comunes, y `span` su ancho en columnas. Los campos declaran valores predeterminados y condiciones de visibilidad. CloudTechNext valida las referencias y requiere este contrato; no reconstruye formularios antiguos. Las credenciales se cargan en el grupo `credentials`; los demás controles se habilitan tras validarlas. Las releases publicadas conservan sus manifiestos inmutables: este contrato requiere una nueva release y un motor compatible.

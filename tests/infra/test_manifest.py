@@ -5,6 +5,7 @@ Deploy Studio repository; these tests do not certify that integration.
 """
 
 import json
+from collections import Counter
 from pathlib import Path
 import re
 
@@ -63,13 +64,21 @@ def test_existing_selection_has_explicit_native_identity_fields():
     assert {field["name"] for field in fields.values() if field.get("secret")} == {"autonomous_database_admin_password"}
     password = fields["autonomous_database_admin_password"]
     assert password["type"] == "password" and password["required"] is False and "default" not in password
+    assert password["generate_password"] is True
+    assert password["generate_password_when"] == {"field": "autonomous_database_mode", "equals": "new"}
+    assert all(type(field.get("generate_password", False)) is bool for field in fields.values())
+    assert {name for name, field in fields.items() if field.get("generate_password", False)} == {password["name"]}
+    assert {name for name, field in fields.items() if "generate_password_when" in field} == {password["name"]}
+    declared_order = list(fields)
+    assert declared_order.index(password["generate_password_when"]["field"]) < declared_order.index(password["name"])
     assert manifest["capabilities"]["database_profile"] == "new_or_existing"
     assert manifest["capabilities"]["existing_database_wallet"] == "none"
     assert not {"autonomous_database_wallet_password", "wallet_file"} & fields.keys()
     assert fields["autonomous_database_version"]["transform"] == "database_profile"
     assert fields["autonomous_database_version"]["options"] == [{"value": "26ai:DW", "label": "Oracle AI Database 26ai · AI Lakehouse (DW)"}]
-    assert all(field["group"] == "database" for name, field in fields.items()
-               if name.startswith(("autonomous_database", "existing_autonomous")))
+    database = next(group for group in manifest["form"]["groups"] if group["id"] == "database")
+    assert {item["name"] for item in database["items"] if item["kind"] == "field"} == {
+        name for name in fields if name.startswith(("autonomous_database", "existing_autonomous"))}
 
 
 def test_installation_form_exposes_service_mode_and_keeps_administration_outside_the_form():
@@ -134,13 +143,15 @@ def test_form_labels_options_and_stages_match_the_requested_english_contract():
 
 def test_new_aidp_name_is_adjacent_to_mode_and_has_the_same_terraform_default_and_bounds():
     manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
-    ordered = manifest["form"]["fields"]
-    fields = {field["name"]: field for field in ordered}
+    fields = {field["name"]: field for field in manifest["form"]["fields"]}
     mode, name = fields["aidp_mode"], fields["new_aidp_name"]
-    assert len(ordered) == 14
-    assert ordered.index(name) == ordered.index(mode) + 1
-    assert mode["span"] == name["span"] == 1
-    assert mode["group"] == name["group"] == "aidp_platform"
+    assert len(fields) == 14
+    platform_group = next(group for group in manifest["form"]["groups"] if group["id"] == "aidp_platform")
+    ordered = platform_group["items"]
+    mode_item = next(item for item in ordered if item["kind"] == "field" and item["name"] == mode["name"])
+    name_item = next(item for item in ordered if item["kind"] == "field" and item["name"] == name["name"])
+    assert ordered.index(name_item) == ordered.index(mode_item) + 1
+    assert mode_item["span"] == name_item["span"] == 1
     assert name["type"] == "text" and name["required"] is True
     assert name["default"] == "aidp_governance"
     assert name["visible_when"] == {"field": "aidp_mode", "equals": "new"}
@@ -150,3 +161,80 @@ def test_new_aidp_name_is_adjacent_to_mode_and_has_the_same_terraform_default_an
     definition = variables.split('variable "new_aidp_name" {', 1)[1].split('variable ', 1)[0]
     assert re.search(r'\bdefault\s*=\s*"aidp_governance"', definition)
     assert name["pattern"] in definition
+
+
+def test_schema_two_requires_explicit_nonempty_groups_with_unique_ids():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    assert type(manifest["schema_version"]) is int and manifest["schema_version"] == 2
+    groups = manifest["form"]["groups"]
+    assert isinstance(groups, list) and groups
+    ids = [group["id"] for group in groups]
+    assert len(ids) == len(set(ids))
+    assert all(isinstance(name, str) and name.strip() for name in ids)
+    assert all(isinstance(group["title"], str) and group["title"].strip() for group in groups)
+    assert all(isinstance(group["items"], list) and group["items"] for group in groups)
+
+
+def test_credentials_are_the_first_group_and_contain_only_config_and_key_controls_once():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    groups = manifest["form"]["groups"]
+    assert groups[0]["id"] == "credentials"
+    assert [(item["kind"], item["name"]) for item in groups[0]["items"]] == [
+        ("control", "oci_config"), ("control", "oci_key")]
+    controls = Counter(item["name"] for group in groups for item in group["items"] if item["kind"] == "control")
+    assert controls["oci_config"] == controls["oci_key"] == 1
+
+
+def test_group_field_and_file_references_match_all_declarations_exactly_once():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    form = manifest["form"]
+    fields = [field["name"] for field in form["fields"]]
+    files = [file["name"] for file in form.get("files", [])]
+    assert len(fields) == len(set(fields)) and len(files) == len(set(files))
+    assert not set(fields) & set(files)
+    items = [item for group in form["groups"] for item in group["items"]]
+    assert {item["kind"] for item in items} <= {"field", "file", "control"}
+    references = Counter((item["kind"], item["name"]) for item in items if item["kind"] in {"field", "file"})
+    declared = Counter([("field", name) for name in fields] + [("file", name) for name in files])
+    assert references == declared
+
+
+def test_group_controls_match_capabilities_without_unknown_unused_or_duplicate_controls():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    capabilities = manifest["capabilities"]
+    controls = [item for group in manifest["form"]["groups"] for item in group["items"] if item["kind"] == "control"]
+    names = [item["name"] for item in controls]
+    known = {"oci_config", "oci_key", "oci_region", "compartment_mode", "new_compartment", "existing_compartment", "database_wallet"}
+    assert set(names) <= known and len(names) == len(set(names))
+    expected = {"oci_config", "oci_key"}
+    if capabilities["region_selection"] == "subscribed_compatible":
+        expected.add("oci_region")
+    if len(capabilities["compartment_modes"]) > 1:
+        expected.add("compartment_mode")
+    compartment_controls = {"new": "new_compartment", "existing": "existing_compartment"}
+    expected.update(compartment_controls[mode] for mode in capabilities["compartment_modes"])
+    if capabilities["existing_database_wallet"] != "none":
+        expected.add("database_wallet")
+    assert set(names) == expected
+    assert capabilities["existing_database_wallet"] == "none" and "database_wallet" not in names
+
+
+def test_control_labels_and_compartment_options_have_the_declared_shape_and_unique_modes():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    services = next(group for group in manifest["form"]["groups"] if group["id"] == "services")
+    assert [item["name"] for item in services["items"]] == [
+        "oci_region", "compartment_mode", "new_compartment", "existing_compartment"]
+    assert services["items"][0]["span"] == 2
+    controls = {item["name"]: item for group in manifest["form"]["groups"] for item in group["items"] if item["kind"] == "control"}
+    assert {name: item["label"] for name, item in controls.items()} == {
+        "oci_config": "OCI config", "oci_key": "API private key", "oci_region": "OCI Region",
+        "compartment_mode": "Compartment mode", "new_compartment": "New compartment name",
+        "existing_compartment": "Existing compartment"}
+    options = controls["compartment_mode"]["options"]
+    assert isinstance(options, list) and options
+    assert all(set(option) == {"value", "label"} for option in options)
+    assert all(isinstance(option["label"], str) and option["label"].strip() for option in options)
+    values = [option["value"] for option in options]
+    assert len(values) == len(set(values))
+    assert values == manifest["capabilities"]["compartment_modes"]
+    assert not any("options" in item for name, item in controls.items() if name != "compartment_mode")
