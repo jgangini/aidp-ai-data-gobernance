@@ -67,7 +67,8 @@ def install():
         def __init__(self, config, **kwargs):
             record('sdk-objects')
 
-        def get_object(self, *_args, **_kwargs):
+        def get_object(self, namespace, bucket, *_args, **_kwargs):
+            assert bucket == case['artifacts_bucket_name']
             record('get-owned-receipt')
             raise oci.exceptions.ServiceError(404, 'ObjectNotFound', {}, 'Fixture object is absent')
 
@@ -134,6 +135,7 @@ def install():
 
         def ensure_memory(client, store, command, authorize):
             record('memory-boundary')
+            assert client.settings.artifacts_bucket_name == case['artifacts_bucket_name']
             authorize({'phase': 'ready'})
             return {'autonomous_database_id': case['database_id'], 'memory_status': 'READY'}
 
@@ -143,6 +145,7 @@ def install():
         def run_operation(client, store, **kwargs):
             record('lifecycle-boundary')
             assert kwargs['admin'] == case['admin_user_ocid']
+            assert client.settings.artifacts_bucket_name == case['artifacts_bucket_name']
             if 'expected_command' in case:
                 assert kwargs['command'] == case['expected_command']
             status = case.get('outcome', 'active')

@@ -32,16 +32,19 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `existing_ai_data_platform_ocid` | Selector de plataformas AIDP; obligatorio y visible en existing. |
 | `existing_workspace_key` | `Existing workspace`: selector `oci_aidp_workspaces` de workspaces reales de `existing_ai_data_platform_ocid`; conserva su UUID canónico. Obligatorio y visible en existing. |
 | `identity_domain_id` | Dominio seleccionado desde `oci_identity_domains`; se guarda su OCID. |
-| `admin_user_ocid` | Administrador activo del dominio, listado por `oci_aidp_administrators`; se guarda su OCID estable. |
-| `artifacts_mode` | Bucket `new` o `existing`; valor inicial `existing`. |
-| `artifacts_bucket_name` | Nombre explícito del bucket de artefactos. |
+| `admin_user_ocid` | `AIDP administrator`: administrador activo del dominio, listado por `oci_aidp_administrators`; se guarda su OCID estable. |
+| `artifacts_mode` | `Artifacts bucket mode`: `Create new bucket` (`new`) o `Use existing bucket` (`existing`); valor inicial `existing`. |
+| `artifacts_bucket_name` | `New artifacts bucket name`: nombre explícito, obligatorio y visible en new. Preflight también devuelve en este binding el nombre canónico cuando se selecciona un bucket existente. |
+| `artifacts_existing_bucket_name` | `Existing artifacts bucket`: selector `oci_active_buckets` por nombre exacto; obligatorio y visible en existing. |
 | `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`. |
-| `autonomous_database_mode` | Base de memoria `new` o `existing`; valor inicial `new`. |
-| `autonomous_database_version` | Sólo en new: perfil `26ai:DW`; el runner produce versión `26ai` y workload `DW`. |
-| `existing_autonomous_database_ocid` | Sólo en existing: OCID exacto de la Lakehouse compatible. |
-| `autonomous_database_admin_password` | Campo secreto sin valor predeterminado. Su obligatoriedad efectiva depende de la ruta de plataforma/base y de la asociación registrada. |
+| `autonomous_database_mode` | `Database mode`: `Create new database` (`new`) o `Use existing database` (`existing`); valor inicial `new`. |
+| `autonomous_database_version` | `Database profile`, sólo en new: perfil `26ai:DW`; el runner produce versión `26ai` y workload `DW`. |
+| `existing_autonomous_database_ocid` | `Existing Autonomous Database`: selector `oci_autonomous_databases`, visible y obligatorio en existing; conserva el OCID exacto de la Lakehouse compatible. |
+| `autonomous_database_admin_password` | `Database admin password`: secreto sin valor predeterminado. Su obligatoriedad efectiva depende de la ruta de plataforma/base y de la asociación registrada. |
 
 La UI agrupa plataforma en `aidp_platform`, dominio/administrador en `identity`, bucket en `artifacts`, modelo en `enterprise_ai` y Autonomous en `database`. El renderer común de CTN controla presentación y orden. El formulario instala con la operación predeterminada `install`; no ofrece un selector de mantenimiento. Los comandos administrativos y de recuperación permanecen disponibles según el [contrato de operación](contracts.md#operaciones).
+
+Las etiquetas, opciones y etapas del formulario están en inglés. La documentación mantiene el español. Seleccionar un bucket o una base existentes no transfiere su propiedad ni acredita los permisos; los hooks conservan sus verificaciones.
 
 ### Cuándo proporcionar ADMIN
 

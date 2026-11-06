@@ -22,9 +22,9 @@
   },
   "presentation": {
     "title": "AIDP AI Data Governance",
-    "summary": "Despliega dos agentes de documentación y gobierno, dieciocho tablas de catálogo y un workflow de cuatro tareas en Oracle AI Data Platform. Crea o reutiliza Autonomous AI Lakehouse 26ai para la memoria administrada de agentes y permite elegir su modelo desde Deploy Studio.",
+    "summary": "Deploys two documentation and governance agents, eighteen catalog tables and a four-task workflow in Oracle AI Data Platform. Creates or reuses an Autonomous AI Lakehouse 26ai for managed agent memory and lets you select the agent model in Deploy Studio.",
     "image": "/assets/oci-aidp-cloud-migration-lab.png",
-    "image_alt": "AIDP AI Data Governance sobre AI Data Platform Workbench; ilustración de datos, análisis e inteligencia artificial.",
+    "image_alt": "AIDP AI Data Governance on AI Data Platform Workbench; data, analytics and artificial intelligence illustration.",
     "tags": [
       "AIDP",
       "Governance",
@@ -36,27 +36,27 @@
   "run_steps": [
     {
       "key": "queue",
-      "label": "En cola"
+      "label": "Queued"
     },
     {
       "key": "credentials",
-      "label": "Identidad y autorización"
+      "label": "Validate identity and access"
     },
     {
       "key": "plan",
-      "label": "Revisar recursos"
+      "label": "Review resources"
     },
     {
       "key": "apply",
-      "label": "Preparar plataforma y artefactos"
+      "label": "Prepare platform and artifacts"
     },
     {
       "key": "artifacts",
-      "label": "Instalar Governance y verificar recibos"
+      "label": "Install and verify resources"
     },
     {
       "key": "complete",
-      "label": "Candidato TEST instalado"
+      "label": "TEST candidate installed"
     }
   ],
   "form": {
@@ -81,7 +81,7 @@
       },
       {
         "name": "existing_ai_data_platform_ocid",
-        "label": "Plataforma AIDP existente",
+        "label": "Existing AIDP",
         "type": "select",
         "options_source": "oci_aidp_platforms",
         "required": true,
@@ -116,7 +116,7 @@
       },
       {
         "name": "admin_user_ocid",
-        "label": "Administrador AIDP elegible",
+        "label": "AIDP administrator",
         "type": "select",
         "required": true,
         "options_source": "oci_aidp_administrators",
@@ -124,27 +124,46 @@
       },
       {
         "name": "artifacts_mode",
-        "label": "Bucket de artefactos",
+        "label": "Artifacts bucket mode",
         "type": "select",
         "required": true,
         "default": "existing",
         "options": [
           {
             "value": "new",
-            "label": "Crear bucket"
+            "label": "Create new bucket"
           },
           {
             "value": "existing",
-            "label": "Usar bucket existente"
+            "label": "Use existing bucket"
           }
         ],
         "group": "artifacts"
       },
       {
         "name": "artifacts_bucket_name",
-        "label": "Nombre del bucket de artefactos",
+        "label": "New artifacts bucket name",
         "type": "text",
         "required": true,
+        "pattern": "^[A-Za-z0-9._-]{1,128}$",
+        "min_length": 1,
+        "max_length": 128,
+        "group": "artifacts",
+        "visible_when": {
+          "field": "artifacts_mode",
+          "equals": "new"
+        }
+      },
+      {
+        "name": "artifacts_existing_bucket_name",
+        "label": "Existing artifacts bucket",
+        "type": "select",
+        "options_source": "oci_active_buckets",
+        "required": true,
+        "visible_when": {
+          "field": "artifacts_mode",
+          "equals": "existing"
+        },
         "pattern": "^[A-Za-z0-9._-]{1,128}$",
         "min_length": 1,
         "max_length": 128,
@@ -160,25 +179,25 @@
       },
       {
         "name": "autonomous_database_mode",
-        "label": "Oracle AI Database para memoria",
+        "label": "Database mode",
         "type": "select",
         "required": true,
         "default": "new",
         "options": [
           {
             "value": "new",
-            "label": "Crear Autonomous AI Lakehouse"
+            "label": "Create new database"
           },
           {
             "value": "existing",
-            "label": "Usar Autonomous existente"
+            "label": "Use existing database"
           }
         ],
         "group": "database"
       },
       {
         "name": "autonomous_database_version",
-        "label": "Perfil de memoria",
+        "label": "Database profile",
         "type": "select",
         "required": true,
         "default": "26ai:DW",
@@ -197,19 +216,20 @@
       },
       {
         "name": "existing_autonomous_database_ocid",
-        "label": "OCID de Autonomous AI Lakehouse existente",
-        "type": "text",
+        "label": "Existing Autonomous Database",
+        "type": "select",
         "required": true,
         "pattern": "^ocid1\\.autonomousdatabase\\..+$",
         "visible_when": {
           "field": "autonomous_database_mode",
           "equals": "existing"
         },
-        "group": "database"
+        "group": "database",
+        "options_source": "oci_autonomous_databases"
       },
       {
         "name": "autonomous_database_admin_password",
-        "label": "Contraseña ADMIN para crear o vincular memoria",
+        "label": "Database admin password",
         "type": "password",
         "required": false,
         "secret": true,
@@ -252,12 +272,13 @@
       "autonomous_database_admin_password"
     ],
     "output_inputs": [
-      "home_region"
+      "home_region",
+      "artifacts_bucket_name"
     ],
     "runtime_fields": [
       {
         "name": "home_region",
-        "label": "Región principal de la tenancy",
+        "label": "Tenancy home region",
         "type": "text",
         "required": true,
         "pattern": "^[a-z]{2}-[a-z0-9-]+-[0-9]+$"

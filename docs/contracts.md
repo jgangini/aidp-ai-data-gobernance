@@ -84,4 +84,6 @@ El contrato del runner depende de la fase:
 
 No se usa la variable de la otra fase como alternativa. También los errores de contexto o credenciales se escriben como JSON en el archivo correspondiente. El manifiesto declara todas las claves que el hook puede devolver en `outputs`; Deploy Studio rechaza salidas no declaradas.
 
+En modo de artefactos `existing`, preflight exige `artifacts_existing_bucket_name` y devuelve el nombre seleccionado como `artifacts_bucket_name`. Ese nombre canónico queda vinculado al modo y a la salida Terraform. Un selector ausente, nombre inválido o discrepancia entre selector, contexto canónico y Terraform bloquea el acceso al destino de recibos. En modo `new` se usa el nombre introducido en `artifacts_bucket_name`.
+
 Las herramientas conservan la protección del esquema framework, el rechazo de SQL arbitrario y la admisión explícita de efectos. El proceso de evaluación no aísla a un worker autorizado malicioso; la protección del runner y sus permisos sigue siendo necesaria.
