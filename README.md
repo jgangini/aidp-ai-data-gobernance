@@ -2,6 +2,8 @@
 
 Agentes de documentación y gobierno de datos para Oracle AI Data Platform. El producto se instala desde Deploy Studio en una plataforma nueva o existente, con el dominio y el administrador seleccionados en el formulario. No incluye portal web ni VM administrativa.
 
+[Candidata validada 0.3.0 RC1](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.1): aprovisionamiento y asociación de memoria implementados; aceptación nativa detenida.
+
 Repositorio canónico: [jgangini/aidp-ai-data-gobernance](https://github.com/jgangini/aidp-ai-data-gobernance). El nombre del repositorio usa **gobernance**; el identificador técnico del producto sigue siendo `aidp-ai-data-governance` y el paquete Python, `ai_data_governance`.
 
 ## Qué despliega

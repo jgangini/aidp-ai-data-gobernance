@@ -1,6 +1,6 @@
 # Releases y handoff a Deploy Studio
 
-Producto `aidp-ai-data-governance`, nombre visible AIDP AI Data Governance, repositorio público `jgangini/aidp-ai-data-gobernance`. Candidata `v0.3.0-rc.1`: memoria administrada sobre Autonomous AI Lakehouse 26ai, formulario agrupado y URL canónica nueva. La aceptación OCI permanece detenida por el usuario. El tag se fija al código validado; no se mueven ni reemplazan los tags/assets históricos. Deploy Studio obtiene ese tag resuelto a SHA; no se necesita PAT para descargar código público ni existe VM de portal.
+Producto `aidp-ai-data-governance`, nombre visible AIDP AI Data Governance, repositorio público `jgangini/aidp-ai-data-gobernance`. Candidata publicada [`v0.3.0-rc.1`](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.1): memoria administrada sobre Autonomous AI Lakehouse 26ai, formulario agrupado y URL canónica nueva. La aceptación OCI permanece detenida por el usuario. El tag se fija al código validado; no se mueven ni reemplazan los tags/assets históricos. Deploy Studio obtiene ese tag resuelto a SHA; no se necesita PAT para descargar código público ni existe VM de portal.
 
 ## Conjunto exacto de assets
 
@@ -108,3 +108,24 @@ No reutilizar una plataforma READY ajena basándose sólo en ese estado. La prim
 El formulario conserva schema 1, los grupos del renderer CTN y sus fuentes reales de plataforma/dominio/administrador/modelo. Tiene trece campos. El parser e input preparation reales aprobaron el perfil 26ai:DW, el secreto opcional para existing READY y la política sin wallet. El validador puro de wallet se ejecutó aislado desde la función CTN: ninguna wallet requerida y una wallet innecesaria rechazada. No se declara importación completa del módulo API local: el entorno Governance carece de FastAPI y el entorno CTN local usa Python 3.11 frente a sintaxis 3.12 de su inventario. La coordinación conserva sus checks del consumidor y retomará Browser después.
 
 Sentrux conserva el baseline vacío fallido. Las responsabilidades nuevas de control plane y sus pruebas cambian la calidad medida de 0.7016 a 0.7005; acoplamiento redondeado 0.07, tres funciones complejas heredadas, cero ciclos/god files. No se agregan funciones complejas ni se resetea la referencia. El gate global sigue sin aprobación; el coste arquitectónico del nuevo controlador queda explícito para revisión.
+
+## Evidencia publicada 0.3.0 RC1
+
+[Release pública e inmutable](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.1), tag anotado resuelto remotamente a `7eec0a8eed107f25a235eb145afa6456508e298c`. La API anónima confirmó acceso público, `immutable=true`, draft false y cuatro assets. Los tres tags 0.2.0 RC1/RC2/RC3 conservan sus hashes; RC4 no se publicó.
+
+- [CI final 42158871228](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42158871228): 1.911 tests Python en 202.04 s, compilación, Terraform fmt/validate y 18 tests con mocks aprobados.
+- Postflight `.local/memory-postflight-absence-final.txt`: 1.911 tests en 197.79 s y compilación aprobados; salida global 1 únicamente por Sentrux frente al baseline vacío conservado. Calidad 0.7005, coupling 0.07, tres complejas heredadas, cero ciclos/god files; sin reglas custom. No se declara aceptación global de arquitectura.
+- Regresiones focalizadas de memoria/CLI/recibos/artefactos/lifecycle: 149 aprobadas e incluidas en la suite. La aserción antigua de secretos vacíos se corrigió al contrato exacto de ADMIN protegido; no se omitieron controles ni tests. Los intentos anteriores no sustituyen este cierre.
+- Wheel independiente: importación fuera del árbol fuente, SDK 2.189.0 y hashes nativos aprobados; los tres archivos de control críticos coinciden byte por byte con el commit. Los programas de agentes y declaraciones del bundle no cambiaron respecto al checkpoint público.
+- Parser/extractor real CTN: 132 archivos / 926.841 bytes, dentro de 250 / 10 MiB. Trece campos, grupos, perfil, fuentes y secreto declarados. El resolver completo CTN descargó GitHub con token vacío, repository canónico y SHA fijado, y aprobó el tag publicado. No ejecutó hooks.
+- Los cuatro assets se descargaron y sus hashes coinciden con los preparados. Escaneo del candidato: 255 archivos rastreados, sin PEM/tokens detectados; se conservan límites de la auditoría estática previa.
+- Graphify no configurado ni inicializado. No se declara arko check ni paridad del runtime nativo. Browser, OCI, APPLY, conversaciones y persistencia de memoria siguen detenidos por el usuario.
+
+| Asset 0.3.0 RC1 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `aidp-ai-data-governance-source.zip` | 625190 | `2de7d4aed355656b841c85bc24befead64030357d7d235efb51157c7ea09ed52` |
+| `aidp_ai_data_governance-0.3.0-py3-none-any.whl` | 283285 | `45b091d7ccaa5e999ed5e6973aaf24ea2784e76f2b89236d3f7b5608be028c0d` |
+| `aidp-governance-release.json` | 886 | `7839fae17334aa4acc4371382787fa5bdd78fc27fa2387f92df57744e900a11c` |
+| `SHA256SUMS` | 309 | `688f75abe8a388a41473b309eb24f12ffbbf6128a38331942b997b4225fbbb04` |
+
+El manifiesto de evidencia declara `native_acceptance=paused_by_user` y memoria implementada en control plane, sin aceptación de persistencia nativa. No confundir READY técnico con una sesión/checkpoint real confirmado. ACK incierto sin work request queda Pending y requiere conciliación protegida; una plataforma READY ajena o con ETag cambiado no se adopta. No se deshabilita AI ni se cambia/elimina Autonomous como rollback.
