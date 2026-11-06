@@ -83,7 +83,7 @@ variable "governance_operation" {
   type    = string
   default = "install"
   validation {
-    condition     = contains(["install", "resume", "update", "redeploy"], var.governance_operation)
-    error_message = "Governance operation must be install, resume, update or redeploy."
+    condition     = contains(["install", "resume", "update", "redeploy", "rollback"], var.governance_operation)
+    error_message = "Governance operation must be install, resume, update, redeploy or rollback."
   }
 }

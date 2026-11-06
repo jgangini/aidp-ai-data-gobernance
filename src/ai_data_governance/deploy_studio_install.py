@@ -16,6 +16,7 @@ from .governance_source import governance_entry_source
 from .catalog_discovery import discover_source_scopes
 
 from .constants import RUNTIME_FAMILY
+from .native_times import at_or_after
 JOB_NAME = 'wf_ai_dg_sync_master_catalog'
 DOCUMENTARY_NAME = 'ai_data_governance_sync_master_catalog'
 SCHEDULE = {'quartzCronExpression': '0 0/30 * * * ?', 'timezoneId': 'UTC'}
@@ -242,7 +243,7 @@ class GovernanceInstaller:
             def submitted_after(row):
                 observed = self.client._timestamp(row.get('timeCreated') or row.get('createdAt')
                     or row.get('timeStarted') or row.get('startTime'))
-                return observed is not None and round(observed * 1_000_000) >= round(at * 1_000_000)
+                return at_or_after(observed, at)
             rows = [r for r in rows if submitted_after(r)]
             if len(rows) != 1:
                 self.wait('The submitted workflow result is uncertain; do not resubmit it.')

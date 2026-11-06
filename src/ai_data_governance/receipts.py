@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 import hashlib
 import json
+import re
 import time
 import uuid
 from .errors import AidpProvisionConflict, AidpProvisionError
@@ -72,3 +73,37 @@ class ReceiptStore:
     def save(self, receipt, revision):
         self.heartbeat()
         self.write('receipt.json', receipt, revision)
+
+    def _artifact_name(self, digest):
+        if not isinstance(digest, str) or not re.fullmatch('[a-f0-9]{64}', digest):
+            raise ValueError('An artifact SHA-256 is required')
+        return self.prefix + 'artifacts/sha256/' + digest
+
+    def get_artifact(self, digest):
+        target = self._artifact_name(digest)
+        try:
+            response = self.objects.get_object(self.namespace, self.bucket, target)
+        except Exception:
+            raise AidpProvisionError('The immutable artifact backup cannot be read') from None
+        try:
+            body = response.data.raw.read(4 * 1024 * 1024 + 1)
+            if len(body) > 4 * 1024 * 1024 or hashlib.sha256(body).hexdigest() != digest:
+                raise AidpProvisionConflict('The immutable artifact backup hash differs')
+            return body
+        finally:
+            response.data.close()
+
+    def put_artifact(self, body):
+        if not isinstance(body, bytes) or len(body) > 4 * 1024 * 1024:
+            raise ValueError('Artifact backups require at most four MiB of bytes')
+        digest = hashlib.sha256(body).hexdigest()
+        self.heartbeat()
+        try:
+            self.objects.put_object(self.namespace, self.bucket, self._artifact_name(digest), body,
+                content_type='application/octet-stream', if_none_match='*')
+        except Exception:
+            # A lost acknowledgement or a 412 is reconciled only by exact readback.
+            pass
+        if self.get_artifact(digest) != body:
+            raise AidpProvisionConflict('The immutable artifact backup content differs')
+        return digest

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 import pytest
 from ai_data_governance import cli
-from ai_data_governance.errors import AidpProvisionPending
+from ai_data_governance.errors import AidpProvisionConflict, AidpProvisionError, AidpProvisionPending
 
 
 def context():
@@ -67,3 +67,151 @@ def test_changed_terraform_binding_fails_before_native_client_creation(change):
     with pytest.raises(ValueError):
         cli.apply(document, client_factory=factory)
     factory.assert_not_called()
+
+
+@pytest.mark.parametrize('command', ['rollback', 'apply'])
+def test_rollback_dispatch_uses_the_existing_runner_contract(command, tmp_path, monkeypatch, capsys):
+    document = context()
+    document['inputs']['governance_operation'] = 'rollback'
+    path = tmp_path / 'context.json'
+    path.write_text(json.dumps(document))
+    apply = Mock(return_value={'outputs': {'governance_status': 'rollback_complete'}, 'events': [], 'artifacts': []})
+    monkeypatch.setattr(cli, 'apply', apply)
+    assert cli.settings_for(document).admin_user_ocid == document['inputs']['admin_user_ocid']
+    assert cli.main([command, '--context', str(path)]) == 0
+    apply.assert_called_once_with(document, 'rollback')
+    assert json.loads(capsys.readouterr().out)['outputs']['governance_status'] == 'rollback_complete'
+
+
+@pytest.mark.parametrize('status,exit_code,level', [
+    ('update_failed_restored', 1, 'error'),
+    ('rollback_complete', 0, 'info'),
+    ('restore_failed', 1, 'error'),
+    ('pending', 3, 'warning'),
+])
+def test_recovery_keeps_the_original_outcome_and_runner_exit_status(status, exit_code, level, tmp_path, monkeypatch, capsys):
+    receipt = {'manifest': {'status': status, 'validation_stage': 'TEST_PENDING',
+        'operation': {'operation_id': 'original-operation'}},
+        'outcome': {'status': status, 'failed_operation_id': 'original-failed-operation',
+            'failed_operation_type': 'update', 'provider_message': 'private-api-key upstream text'},
+        'provider_error': {'token': 'private-api-key'}}
+    result = cli._operation_result(receipt, 'workspace')
+    path = tmp_path / 'context.json'
+    path.write_text(json.dumps(context()))
+    monkeypatch.setattr(cli, 'apply', Mock(return_value=result))
+    assert cli.main(['resume', '--context', str(path)]) == exit_code
+    observed = json.loads(capsys.readouterr().out)
+    assert observed['outputs'] == {'governance_status': status, 'validation_stage': 'TEST_PENDING',
+        'workspace_key': 'workspace', 'operation_id': 'original-operation', 'outcome_status': status,
+        'failed_operation_id': 'original-failed-operation', 'failed_operation_type': 'update'}
+    assert observed['events'][0]['level'] == level
+    assert 'private-api-key' not in str(observed)
+    if status != 'rollback_complete':
+        assert 'technical installation verified' not in str(observed)
+
+
+@pytest.mark.parametrize('field,value', [
+    ('failed_operation_id', {'token': 'secret'}),
+    ('failed_operation_type', 'provider-secret'),
+    ('status', 'unrecognized-success'),
+])
+def test_recovery_rejects_unrecognized_or_unstructured_outcome_fields(field, value):
+    receipt = {'manifest': {'status': 'restore_failed', 'validation_stage': 'TEST_PENDING',
+        'operation': {'operation_id': 'original-operation'}},
+        'outcome': {'status': 'restore_failed', field: value}}
+    with pytest.raises(ValueError):
+        cli._operation_result(receipt, 'workspace')
+
+
+@pytest.mark.parametrize('field', ['aidp_mode', 'identity_domain_id', 'model_id', 'artifacts_bucket_name'])
+def test_other_selected_bindings_cannot_be_rewritten_by_terraform(field):
+    document = context()
+    selected = document['inputs']
+    document['terraform_outputs'] = {**selected,
+        'ai_data_platform_ocid': selected['existing_ai_data_platform_ocid'],
+        'workspace_key': selected['existing_workspace_key'], 'resource_ownership': {'platform': 'external'}}
+    document['terraform_outputs'][field] = 'foreign'
+    with pytest.raises(ValueError, match='selected platform or administrator binding'):
+        cli.settings_for(document, applied=True)
+
+
+def bootstrap_context(mode='new'):
+    document = context()
+    document['inputs']['aidp_mode'] = mode
+    document['terraform_outputs'] = {**document['inputs'],
+        'ai_data_platform_ocid': document['inputs']['existing_ai_data_platform_ocid'],
+        'workspace_key': document['inputs']['existing_workspace_key'],
+        'objectstorage_namespace': 'namespace',
+        'resource_ownership': {'platform': 'owned' if mode == 'new' else 'external'}}
+    return document
+
+
+def administrator_harness(monkeypatch, *, existing_receipt):
+    client, store = Mock(), Mock()
+    users = {'operator'}
+    events = []
+    client._oci_config = {'user': 'operator'}
+    client._role_principal_ocids.side_effect = lambda _: (users, set())
+    client._governance_workspace.side_effect = lambda: events.append('workspace') or 'workspace'
+    store.load.side_effect = lambda: events.append('receipt') or (existing_receipt, 'revision')
+
+    def grant(user):
+        events.append('grant')
+        users.add(user)
+
+    client.ensure_selected_admin.side_effect = grant
+    monkeypatch.setattr('ai_data_governance.administrators.domain_user',
+        lambda *_args: ({'groups': []}, 'https://domain.oraclecloud.com'))
+    operation = Mock(return_value={'manifest': {'status': 'active', 'validation_stage': 'TEST_PENDING',
+        'operation': {'operation_id': 'original-operation'}}})
+    monkeypatch.setattr('ai_data_governance.lifecycle.run_operation', operation)
+    return client, store, operation, events
+
+
+def test_new_platform_initial_install_grants_only_after_a_verified_missing_receipt(monkeypatch):
+    client, store, operation, events = administrator_harness(monkeypatch, existing_receipt=None)
+    result = cli.apply(bootstrap_context(), client_factory=lambda _: client, store_factory=lambda *_: store)
+    assert events == ['workspace', 'receipt', 'grant']
+    client.ensure_selected_admin.assert_called_once_with('ocid1.user.oc1..test')
+    assert result['outputs']['governance_status'] == 'active'
+    assert operation.call_args.kwargs['command'] == 'install'
+    client.session.close.assert_called_once()
+
+
+@pytest.mark.parametrize('command', ['install', 'resume', 'update', 'redeploy', 'rollback'])
+@pytest.mark.parametrize('existing_receipt', [{}, {'manifest': {}}], ids=['empty-invalid', 'recorded'])
+def test_revoked_administrator_on_owned_installation_is_not_regranted_even_in_new_mode(command, existing_receipt, monkeypatch):
+    client, store, operation, events = administrator_harness(monkeypatch, existing_receipt=existing_receipt)
+    with pytest.raises(AidpProvisionConflict, match='effective AI_DATA_PLATFORM_ADMIN'):
+        cli.apply(bootstrap_context(), command, lambda _: client, lambda *_: store)
+    assert events == ['workspace', 'receipt']
+    client.ensure_selected_admin.assert_not_called()
+    operation.assert_not_called()
+    client.session.close.assert_called_once()
+
+
+@pytest.mark.parametrize('command', ['resume', 'update', 'redeploy', 'rollback'])
+def test_missing_receipt_does_not_authorize_grant_for_non_install_commands(command, monkeypatch):
+    client, store, operation, _ = administrator_harness(monkeypatch, existing_receipt=None)
+    with pytest.raises(AidpProvisionConflict):
+        cli.apply(bootstrap_context(), command, lambda _: client, lambda *_: store)
+    client.ensure_selected_admin.assert_not_called()
+    operation.assert_not_called()
+
+
+def test_receipt_lookup_failure_blocks_initial_admin_assignment(monkeypatch):
+    client, store, operation, _ = administrator_harness(monkeypatch, existing_receipt=None)
+    store.load.side_effect = AidpProvisionError('receipt unavailable')
+    with pytest.raises(AidpProvisionError):
+        cli.apply(bootstrap_context(), client_factory=lambda _: client, store_factory=lambda *_: store)
+    client.ensure_selected_admin.assert_not_called()
+    operation.assert_not_called()
+    client.session.close.assert_called_once()
+
+
+def test_external_platform_never_receives_bootstrap_admin_assignment(monkeypatch):
+    client, store, operation, _ = administrator_harness(monkeypatch, existing_receipt=None)
+    with pytest.raises(AidpProvisionConflict):
+        cli.apply(bootstrap_context('existing'), client_factory=lambda _: client, store_factory=lambda *_: store)
+    client.ensure_selected_admin.assert_not_called()
+    operation.assert_not_called()

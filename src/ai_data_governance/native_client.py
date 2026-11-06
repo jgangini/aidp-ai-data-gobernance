@@ -32,10 +32,31 @@ class NativeClient(AidpClient):
         manifest['updated_at'] = datetime.now(timezone.utc).isoformat()
         self.receipt['manifest'] = manifest
         self.store.save(self.receipt, self.receipt_revision)
-        self.receipt, self.receipt_revision = self.store.load()
+        observed, revision = self.store.load()
+        if observed != self.receipt:
+            raise AidpProvisionConflict('The durable receipt readback differs from the intended revision')
+        self.receipt_revision = revision
 
     def _module_manifest(self, workspace_key):
         return self.receipt.get('manifest') if self.receipt else None
+
+    def read_artifact(self, workspace_key, path):
+        body, headers = self._request('GET', '/workspaces/' + workspace_key + '/objects/' + quote(path, safe=''),
+            headers={'Accept': 'application/octet-stream'}, include_headers=True, allow_not_found=True,
+            raw_response=True, phase='artifacts')
+        if not isinstance(body, bytes) or self._workspace_object_type(body, headers) == 'FOLDER':
+            raise AidpProvisionConflict('An owned artifact has no verifiable raw file bytes')
+        return body
+
+    def write_artifact(self, workspace_key, path, content):
+        if self.read_artifact(workspace_key, path) == content:
+            return False
+        self._request('POST', '/workspaces/' + workspace_key + '/objects', data=content,
+            headers={'Accept': '*/*', 'path': path, 'type': 'FILE', 'is-overwrite': 'true',
+                     'Content-Type': 'application/octet-stream'}, phase='artifacts')
+        if self.read_artifact(workspace_key, path) != content:
+            raise AidpProvisionPending('Exact artifact bytes are not published yet', 'artifacts')
+        return True
 
     def _ensure_governance_bucket(self):
         # Terraform owns creation; the installer never creates/adopts a bucket.

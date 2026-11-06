@@ -366,7 +366,7 @@
       "source": "apps/backend/app/modules/ai_data_governance/deploy_studio_install.py",
       "target": "src/ai_data_governance/deploy_studio_install.py",
       "source_sha256": "7c91106667f6c07f6b7c354196ba40231260326af1023912b279c8037097417c",
-      "candidate_sha256": "0cca6ea71523c75d71822ef6c132488b55d5b285058bdd39073e7313337adf7b"
+      "candidate_sha256": "ea93a649e0af064b60b5a957c3b553b6826247897adef098a54cc21a6af4c339"
     },
     {
       "source": "apps/backend/app/modules/ai_data_governance/deployment_bundle.py",
@@ -1099,7 +1099,7 @@
       "target": "src/ai_data_governance/client.py",
       "source_sha256": "74269f5952d521c6550dc07114c39b5fef6ea8b0cc63780632b305ae73b453af",
       "extraction": "reviewed responsibility subset",
-      "candidate_sha256": "f48699253621671895f7944069024ec8d2e5b7920828f6769a267646036683c2"
+      "candidate_sha256": "ce5e25ddad2487f3bbad161174f7a8009c2b45dfc78fbed346fca621ddad6381"
     },
     {
       "source": "apps/backend/app/services/oci/contracts.py",

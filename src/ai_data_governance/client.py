@@ -207,6 +207,7 @@ class AidpClient:
         phase: str = "content",
         retry_scope: str = "",
         legacy: bool = False,
+        raw_response: bool = False,
     ) -> Any:
         request_headers = self._request_headers(
             method, path, payload, data, headers, retry_scope
@@ -239,7 +240,7 @@ class AidpClient:
                 status_code=response.status_code,
                 request_id=str(response.headers.get("opc-request-id") or ""),
             )
-        result = self._response_body(response)
+        result = response.content if raw_response else self._response_body(response)
         return (result, response.headers) if include_headers else result
 
     @staticmethod

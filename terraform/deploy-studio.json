@@ -26,7 +26,7 @@
   ],
   "form": {
     "fields": [
-      {"name": "governance_operation", "label": "Operación de Governance", "type": "select", "required": true, "default": "install", "options": [{"value": "install", "label": "Instalar candidato"}, {"value": "resume", "label": "Reanudar la misma operación"}, {"value": "update", "label": "Actualizar instalación propia"}, {"value": "redeploy", "label": "Redesplegar instalación propia"}]},
+      {"name": "governance_operation", "label": "Operación de Governance", "type": "select", "required": true, "default": "install", "options": [{"value": "install", "label": "Instalar candidato"}, {"value": "resume", "label": "Reanudar la misma operación"}, {"value": "update", "label": "Actualizar instalación propia"}, {"value": "redeploy", "label": "Redesplegar instalación propia"}, {"value": "rollback", "label": "Restaurar artefactos propios previos"}]},
       {"name": "aidp_mode", "label": "Plataforma AIDP", "type": "select", "required": true, "default": "existing", "options": [{"value": "new", "label": "Crear plataforma"}, {"value": "existing", "label": "Usar plataforma existente"}]},
       {"name": "existing_ai_data_platform_ocid", "label": "OCID de plataforma existente", "type": "text", "required": true, "visible_when": {"field": "aidp_mode", "equals": "existing"}, "pattern": "^ocid1\\.aidataplatform\\..+$"},
       {"name": "existing_workspace_key", "label": "Clave del workspace existente", "type": "text", "required": true, "visible_when": {"field": "aidp_mode", "equals": "existing"}, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},

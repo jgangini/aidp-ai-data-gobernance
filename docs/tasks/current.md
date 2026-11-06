@@ -1,61 +1,61 @@
-# Separación Governance
+# Separación Governance: recuperación de artefactos
 
-Implementación autorizada 2026-11-05. Fuente congelada `3c82617fd298933995e954955841007253cc0985`. Remoto privado verificado: `https://github.com/jgangini/aidp-ai_data_governance`, rama main. Commit de código candidato probado y subido: `868387fb9bebcc2a673af06f79a5e2d8c6710b4b`. [CI GitHub 42141257951](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42141257951) aprobado: Python y Terraform. No hay release publicada. El commit posterior de este estado es exclusivamente documental y no cambia el código probado.
+Fecha de trabajo: 2026-11-05 (America/Lima). Fuente congelada: `3c82617fd298933995e954955841007253cc0985`. Repositorio privado: https://github.com/jgangini/aidp-ai_data_governance, rama main.
 
-## Implementado
+El código anterior `868387f` y su cierre documental `174e7af` están subidos. [CI anterior 42141257951](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42141257951) aprobó 1.740 tests y cinco Terraform; esa evidencia no sustituye esta continuación. El contrato de recuperación está implementado y la suite local completa aprobó 1.836 tests. Nuevo push/CI y release privada `v0.2.0-rc.1` en preparación, autorizados por coordinación para su prueba real desde Deploy Studio. Solo coordinación creará un AIDP y agregará los demás módulos sobre ese mismo; este chat no opera OCI.
 
-- Extracción explícita desde Git, con archivos/hashes de origen en `provenance.json`, sin `.oci`, estado, caches ni copia del monolito.
-- Dominio independiente, dos agentes, 18 tablas y workflow de cuatro tareas; state/nodes/graph separados, herramientas existentes y factories inyectadas. Assembly determinista y preámbulo mantenido en Python importable.
-- Cliente OCI reducido a Governance; CLI/hooks sin API, frontend, login, imagen ni VM de portal. Instalar/reanudar/actualizar/redesplegar mediante `governance_operation` en el formulario schema 1 y comandos CLI equivalentes.
-- Administrador/dominio estables, usuario activo, roles efectivos y operador firmante separados; asignación administrativa new verificada tras bootstrap. Existing no recibe privilegios por seleccionar un usuario.
-- Recibos Object Storage con CAS y lease/fencing. Reanudar conserva operación/candidato/fuente inmutable; update pausa horario, espera writers, conserva IDs/snapshot y exige nuevos runs. Sin adopción de compute oculto ni borrado automático de compute fallido.
-- Terraform propio AIDP/workspace y bucket new/existing, ownership explícito, hooks y requirements incluidos en el archivo distribuido. Los externos no pasan a propiedad destructiva del producto.
-- CI privado configurado para Python y Terraform con mocks. No contiene credenciales ni ejecuta inferencia.
+## Contrato implementado
 
-## Evidencia disponible
+- Paquete Python/CLI/hooks y fuentes AIDP: dos agentes, dieciocho tablas y workflow de cuatro tareas. Sin portal, frontend, servidor HTTP, login local ni VM administrativa.
+- Install conserva los gates nativos originales. Update/redeploy/rollback utilizan mantenimiento separado: no crean recursos, cambian permisos/credenciales, ejecutan DDL ni hacen POST jobRuns/inferencia.
+- Antes de la primera mutación nativa se respaldan por bytes exactos los catorce assets y los dos descriptores de agente, con workflow/schedule, definiciones/despliegues e identidad/revisión previa. Blobs y snapshots por SHA-256, readback completo y referencia publicada por CAS. No se codifican programas en receipt.json.
+- Historial versionado de referencias; nunca se borran copias automáticamente. Límite de cien generaciones antes de exigir revisión explícita de retención.
+- Artefactos y agentes deben corresponder a las identidades registradas; no se adoptan recursos. Se rechazan nuevas/eliminadas rutas, cambios MODEL/NAMESPACE/STORAGE y cambios de modelo configurado antes de la primera pausa/escritura.
+- Los writers se drenan tomando claves y estados de una sola observación; se comprueba de nuevo antes de escribir. Un writer nuevo no se incorpora silenciosamente a una barrera ya declarada.
+- Refresh candidato y restore usan journals/scopes distintos. Resultado incierto se observa, sin reenviar a ciegas. Rechazo HTTP definitivo registrado admite Resume explícito.
+- Fracaso parcial de update o refresh: restaura solamente bytes/definición previos y refresca esos agentes existentes; conserva datos, claves y el schedule previo exacto, incluido PAUSED.
+- Restore fallido conserva el error original y un código adicional de restore; Resume continúa la misma copia y fase. La versión saludable efectiva se separa del candidato fallido.
+- `update_failed_restored` sigue siendo fallo y sale 1; `restore_failed` sale 1; pendiente sale 3. `rollback_complete` sale 0 únicamente tras restauración y readbacks técnicos completos. No se convierte el update fallido en un éxito.
+- Cutover propio con respuesta perdida: se reconcilia con intención durable, archivos exactos, refresh verificado y workflow objetivo. Runs legítimos nacidos después de esa activación no se cancelan ni revierten por confundirlos con actividad anterior.
+- Administrador activo/roles efectivos se verifican cada vez. Solo install inicial new sin recibo propio puede conceder el rol seleccionado. Resume/update/rollback no reponen una revocación; recibo vacío o lookup fallido bloquean la concesión.
 
-- Preflight inicial: baseline Sentrux capturado antes del código. Se conserva en `.sentrux/initial-baseline.json` y se restaura al clonar; no fue recalibrado.
-- Postflight final `.local/postflight-release-candidate.txt`: **1.740 tests aprobados en 118.66 s** y compilación Python aprobada. El comando completo termina con error por el gate Sentrux descrito abajo; no se declara postflight aprobado.
-- CI del mismo commit: **1.740 tests aprobados en 149.14 s**, compilación y cinco tests Terraform aprobados. La evidencia documental posterior se sube con `[skip ci]` porque no modifica el código ni el manifiesto probado; no se atribuye a ella una nueva ejecución.
-- Regresión de precisión ISO/milisegundos: 45 tests del instalador y timestamp aprobados, incluyendo rechazo de runs realmente anteriores. No se relajaron assertions para obtener el pase.
-- Terraform fmt/validate y cinco tests con proveedores simulados: aprobados tras el campo de operación final. Sin APIs OCI.
-- Clase Pydantic real `DeploymentManifest` de CloudTechNext y `_extract_selected`: archivo staged final aprobado con los nueve campos, entrypoints, include_paths, restricciones de archivos y escáner del consumidor. `governance_operation` es un campo estático del formulario admitido; no una propiedad inventada del contrato.
-- Wheel final construida en `.local/dist-reviewed-candidate/`; import desde directorio aislado y assembly repetido de 14 archivos aprobados. SHA-256: `3c19187cf438be9ad64423993201dd5759eb107791c489ab197a01b06535f40d`.
-- Escaneo de 239 archivos staged y frontera de imports aprobado; git diff --cached --check sin errores después de normalización LF. `.gitattributes` fija LF para que Git/Windows no invaliden los hashes al clonar en Linux.
-- Graphify no configurado, no inicializado. Arko solo guía Python; su perfil CLI fastapi-react no se impuso ni se declara aprobado.
+## Frontera exacta y límites
 
-## Gate arquitectónico y pendientes reales
+El rollback implementado cubre artefactos y refresh de control plane; no restaura datasets ni la infraestructura completa. Antes del cutover, cualquier run nuevo respecto a la barrera o una observación incompleta bloquea cambios de archivos/schedule; un run activo espera, un run nuevo confirmado exige conciliación de datos separada. Reactivar UNPAUSED puede permitir futuras ejecuciones: después de esa frontera no se intenta deshacer sus datos.
 
-Sentrux se ejecuta sobre una selección explícita de código versionado/no ignorado, excluyendo build, claves, caches y archivos privados. La referencia del destino vacío tenía cero funciones complejas y acoplamiento cero; añadir el producto hace fallar el gate. Última medición acotada final: calidad 0.7697 → 0.6968, acoplamiento 0 → 0.08, ciclos 0 y god files 0, funciones complejas 0 → 6. No hay reglas custom. La validación requerida **no está completa** mientras ese gate permanezca fallido; el candidato no se presenta como arquitectura aceptada ni release final. La coordinación debe revisar este cambio de alcance con evidencia antes de aprobar una referencia de producto.
+Se rechaza antes de sobrescribir si faltan bytes originales verificables, copias íntegras, definiciones completas, identidad/revisión propia o el contrato reversible de paths/modelo. Un snapshot corrupto o una edición ajena observada no se sobreescribe para forzar un pase. Workspace no tiene un CAS nativo observado: el lease protege los workers admitidos, no ediciones externas fuera de la ventana exclusiva de mantenimiento.
 
-### Atribución solicitada por coordinación
+ACTIVE/timeUpdated y readback de archivos verifican el refresh técnico; no acreditan por sí solos una conversación, calidad funcional ni todos los bytes realmente servidos por el runtime. Si falta metadata necesaria se mantiene Pending con horario pausado. Ante rechazo de la API de refresh/restore se informa el fallo real; no se inventa un endpoint para reactivar un deployment histórico.
 
-Se reconstruyó en una carpeta temporal únicamente el dominio/tests y las capacidades mínimas del commit congelado, con las mismas rutas/imports de extracción y el loader explícito necesario. Es una comparación estática acotada, no un candidato ejecutable ni otra referencia aprobada. Se ejecutó el mismo `sentrux gate` contra una copia de la referencia vacía, **sin `--save`**, sin alterar la referencia del destino ni la fuente. Evidencia local: `.local/frozen-capability-comparison.txt`.
+No se implementan borrado, transferencia de state/propiedad ni publicación consultiva PROD. Esas operaciones no son necesarias para la recuperación acotada y siguen fuera del alcance autorizado. No OCI, modelos, actores pagados, Docker ni release final ejecutados. `.oci` no se abrió ni modificó; solo este destino fue editado.
 
-| Ámbito | Calidad mostrada | Acoplamiento redondeado | Funciones complejas | Ciclos / god files |
+## Validación de esta continuación
+
+- Preflight ejecutado: falla contra la referencia vacía original, que se conserva sin reset.
+- Postflight estable `.local/postflight-recovery-final.txt`: **1.836 tests aprobados en 201.57 s** y compilación Python aprobada. Incluye recibos corruptos, guardas de identidades/formato, cutover incierto y writer race. El comando termina con error exclusivamente por el gate Sentrux frente al vacío, no por tests; no se declara postflight global aprobado.
+- Pruebas focalizadas previas: 39 CLI, 26 store inmutable y 32 de recuperación/cutover/timestamps aprobaron; están incluidas en la suite, no son cobertura adicional sumable.
+- Terraform fmt/validate y cinco tests con proveedores simulados aprobaron después de añadir rollback al campo de operación.
+- Test cases incluyen: update parcial; restore fallido y éxito al Resume; refresh fallido; pérdida de ack de archivos y refresh; rechazo definitivo frente a envío incierto; múltiples generaciones; restores corruptos; conflicto de identidad/modelo/paths; JSON semánticamente igual con raw distinto; mezcla de revisiones; writes/tasks/permisos prohibidos; cutover con ack perdido y carrera de writer.
+- Wheel independiente: imports aislados y hashes declarados aprobados; escaneo staged de 248 archivos aprobado. El parser/archive real del candidato seleccionó 129 archivos / 888.818 bytes con límites de 250 / 10 MiB; véase [contrato de release y parámetros exactos](../release.md). Inmutabilidad de releases habilitada y verificada mediante GitHub API; repositorio sigue privado.
+- Evidencia del coordinador sobre `174e7af`: extracción real con límites efectivos **250 archivos / 10 MiB** seleccionó 124 archivos y 857.609 bytes. Importación de ambos entrypoints sobre solo ese árbol, Python 3.12 en imagen local ya existente y sin red/OCI, aprobó. Límite de archive GitHub: 100 MiB. No usar 64 MiB como contrato: fue un harness inicial corregido.
+- Graphify no configurado, no inicializado. Arko orienta responsabilidades Python; su perfil fastapi-react no se impuso. No se declara arko check aprobado.
+- Versiones nativas, roles/resources/runs/schedule y calidad de agentes siguen pendientes de aceptación coordinada. LangGraph local 1.2.16 heredado no acredita el perfil 1.0.1 ni paridad nativa.
+
+## Sentrux: atribución y estado
+
+No hay reglas custom ni excepciones inventadas. `.sentrux/initial-baseline.json` conserva la referencia de destino vacío; el gate se ejecuta sobre código versionado/no ignorado, sin caches/build/private state. La referencia no fue sustituida.
+
+| Ámbito | Calidad mostrada | Acoplamiento redondeado | Complejas | Ciclos / god files |
 | --- | --- | --- | --- | --- |
-| Referencia vacía original | 0.7697 | 0.00 | 0 | 0 / 0 |
-| Extracción de capacidades congeladas | 0.6998 | 0.07 | 3 | 0 / 0 |
-| Candidato de código 868387f | 0.6968 | 0.08 | 6 | 0 / 0 |
+| Referencia vacía | 0.7697 | 0.00 | 0 | 0 / 0 |
+| Capacidades congeladas extraídas | 0.6998 | 0.07 | 3 | 0 / 0 |
+| Candidato anterior 868387f | 0.6968 | 0.08 | 6 | 0 / 0 |
+| Recuperación actual | 0.7016 | 0.07 | 3 | 0 / 0 |
 
-El salto de vacío a extracción explica gran parte del cambio de calidad/acoplamiento, pero **no toda la deuda**: el código nuevo añade tres funciones complejas. Frente a la extracción acotada, calidad cae aproximadamente 0.0030 y acoplamiento mostrado aumenta 0.01. El gate tampoco se declara aceptable por esa comparación: sigue existiendo el aumento de complejidad.
+Las tres funciones complejas nuevas fueron eliminadas por responsabilidades reales: admisión y recibos; backup/compatibilidad; journal/refresh; estados de mantenimiento; parsing y binding del CLI. Ya no hay una función que mezcle esos pasos. Permanecen las tres heredadas del extracto congelado. Sin ciclos ni god files.
 
-La atribución se confirmó sobre copias temporales del snapshot del candidato: excluir `lifecycle.py` reduce el total 6 → 4, excluir `cli.py` lo reduce 6 → 5; sustituir individualmente cada función siguiente por un cuerpo vacío en esa copia reduce 6 → 5. Ningún cambio de esa prueba se aplicó al repositorio.
+El gate general **continúa fallando** frente al vacío (0 → 3 y aumento de acoplamiento). Esta comparación no es una aprobación ni un reset. Frente al extracto la complejidad no aumenta y la calidad mostrada mejora aproximadamente 0.0018; corresponde a coordinación revisar esa evidencia para la aceptación de la arquitectura del producto.
 
-- `src/ai_data_governance/lifecycle.py:22`, `RevisionInstaller.agents`: intención, readiness y readback del redespliegue documental/TEST y sus identidades.
-- `src/ai_data_governance/lifecycle.py:73`, `run_operation`: admisión de operación, candidato/fuente inmutables, snapshot, pausa y barrera de writers, recuperación e instalación.
-- `src/ai_data_governance/cli.py:12`, `settings_for`: validación conjunta new/existing, administrador, ownership y bindings públicos devueltos por Terraform.
+## Evidencia local
 
-No hay `.sentrux/rules.toml` ni excepciones inventadas. La referencia inicial continúa idéntica; estas mediciones diagnostican el fallo, no lo ocultan ni recalibran.
-
-### Alcance probado de actualización y recuperación
-
-`tests/test_lifecycle.py` prueba install/resume y, por separado, **update y redeploy**: conserva claves de ambos agentes, AI Compute, Spark y workflow; pausa horario antes de tocar archivos si hay un writer activo; ejecuta nuevos runs; conserva snapshot anterior; no repite despliegue tras perder la respuesta de una operación ya completada. La suite de dominio conserva checks de bootstrap aditivo, tablas y publicación sin reset/destrucción. Esto es evidencia con mocks y fuentes ejecutables, no una demostración de preservación de datos en OCI real.
-
-**Rollback cloud automático no está implementado ni probado.** El snapshot y la reanudación durable no se presentan como rollback. No existe comando rollback que simule éxito. Para implementarlo se necesita restaurar y verificar el artefacto inmutable anterior, su código/workflow y despliegues, sin alterar claves/datos, con pruebas de fallo y aceptación nativa coordinada. Por tanto no se confirma que ese requisito esté cerrado.
-
-Pendientes: ejecución real del runner con el archivo inmutable privado y sus acciones; aceptación nativa de permisos/recursos/runs/schedule y versiones servidas; calidad funcional de los agentes; publicación consultiva PROD. El perfil local LangGraph 1.2.16 heredado no acredita paridad nativa con el perfil 1.0.1 del plugin.
-
-No se implementaron borrado, transferencia de estado/propiedad, migración de instalaciones combinadas ni rollback cloud automático. Update conserva snapshot; restaurar una revisión anterior necesita artefacto inmutable y procedimiento autorizado/verificado. No hay VM que descargue un artefacto privado: Governance viaja como código del paquete inmutable de hooks, sin PAT en Terraform, user-data o outputs.
-
-Sin operaciones OCI, inferencia, actores pagados, cambios en Docker ni publicación de release. `.oci` no se abrió ni modificó. Solo este destino fue editado.
+`.local/preflight-recovery.txt`, `.local/recovery-first.txt`, `.local/artifact-recovery-2.txt`, `.local/recovery-integrated.txt`, `.local/cutover-recovery.txt`, `.local/sentrux-recovery-candidate.txt`, `.local/postflight-recovery-final.txt`. Los intentos intermedios quedan invalidados cuando cambió el código; no se presentan como cierre. Falta registrar el SHA/CI y assets publicados después del push. No se ejecutó inferencia, actor pagado ni APPLY por este chat.
