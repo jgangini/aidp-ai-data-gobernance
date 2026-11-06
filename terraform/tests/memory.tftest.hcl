@@ -88,6 +88,23 @@ run "new_memory_without_password_is_rejected" {
     autonomous_database_mode           = "new"
     autonomous_database_admin_password = ""
   }
+  expect_failures = [oci_database_autonomous_database.memory]
+}
+
+run "new_memory_with_weak_password_is_rejected" {
+  command = plan
+  variables {
+    autonomous_database_mode           = "new"
+    autonomous_database_admin_password = "Short26!"
+  }
+  expect_failures = [var.autonomous_database_admin_password]
+}
+
+run "password_without_lowercase_is_rejected" {
+  command = plan
+  variables {
+    autonomous_database_admin_password = "TESTONLYPASSWORD26!"
+  }
   expect_failures = [var.autonomous_database_admin_password]
 }
 
@@ -105,7 +122,7 @@ run "missing_existing_database_ocid_is_rejected" {
     autonomous_database_mode          = "existing"
     existing_autonomous_database_ocid = ""
   }
-  expect_failures = [var.existing_autonomous_database_ocid]
+  expect_failures = [data.oci_database_autonomous_database.existing_memory]
 }
 
 run "database_name_cannot_replace_an_existing_ocid" {
@@ -114,7 +131,7 @@ run "database_name_cannot_replace_an_existing_ocid" {
     autonomous_database_mode          = "existing"
     existing_autonomous_database_ocid = "database-name"
   }
-  expect_failures = [var.existing_autonomous_database_ocid]
+  expect_failures = [data.oci_database_autonomous_database.existing_memory]
 }
 
 run "new_23ai_profile_is_rejected" {

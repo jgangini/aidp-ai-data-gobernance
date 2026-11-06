@@ -35,7 +35,7 @@ Una plataforma existente necesita su OCID, el UUID exacto del workspace y el Spa
 4. Proporciona la contraseña ADMIN mediante el campo protegido cuando sea necesaria. El modo `new` de plataforma la exige en preflight; una base propia en modo `new` también la necesita para su declaración Terraform. Puede omitirse para verificar plataforma y base existentes con memoria propia READY compatible.
 5. Revisa el plan y ejecuta el despliegue autorizado. La instalación ejecuta el bootstrap y el workflow documental; puede consumir el modelo seleccionado.
 
-La [guía de Deploy Studio](docs/deploy-studio.md) detalla los trece parámetros, los modos nuevos/existentes y las salidas. Para compartir el AIDP con otros productos usa `ai_data_platform_ocid` y el `workspace_key` verificado del **post-apply final**; el output inicial de Terraform para un workspace nuevo está vacío.
+La [guía de Deploy Studio](docs/deploy-studio.md) detalla los doce parámetros, los modos nuevos/existentes y las salidas. Para compartir el AIDP con otros productos usa `ai_data_platform_ocid` y el `workspace_key` verificado del **post-apply final**; el output inicial de Terraform para un workspace nuevo está vacío.
 
 ## Operación
 

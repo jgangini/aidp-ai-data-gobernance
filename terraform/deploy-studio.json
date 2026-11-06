@@ -62,49 +62,19 @@
   "form": {
     "fields": [
       {
-        "name": "governance_operation",
-        "label": "Operación de Governance",
-        "type": "select",
-        "required": true,
-        "default": "install",
-        "options": [
-          {
-            "value": "install",
-            "label": "Instalar candidato"
-          },
-          {
-            "value": "resume",
-            "label": "Reanudar la misma operación"
-          },
-          {
-            "value": "update",
-            "label": "Actualizar instalación propia"
-          },
-          {
-            "value": "redeploy",
-            "label": "Redesplegar instalación propia"
-          },
-          {
-            "value": "rollback",
-            "label": "Restaurar artefactos propios previos"
-          }
-        ],
-        "group": "aidp_platform"
-      },
-      {
         "name": "aidp_mode",
-        "label": "Plataforma AIDP",
+        "label": "Services mode",
         "type": "select",
         "required": true,
         "default": "existing",
         "options": [
           {
             "value": "new",
-            "label": "Crear plataforma"
+            "label": "Create new AIDP"
           },
           {
             "value": "existing",
-            "label": "Usar plataforma existente"
+            "label": "Use existing AIDP"
           }
         ],
         "group": "aidp_platform"
@@ -124,15 +94,16 @@
       },
       {
         "name": "existing_workspace_key",
-        "label": "Clave del workspace existente",
-        "type": "text",
+        "label": "Existing workspace",
+        "type": "select",
         "required": true,
         "visible_when": {
           "field": "aidp_mode",
           "equals": "existing"
         },
         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        "group": "aidp_platform"
+        "group": "aidp_platform",
+        "options_source": "oci_aidp_workspaces"
       },
       {
         "name": "identity_domain_id",

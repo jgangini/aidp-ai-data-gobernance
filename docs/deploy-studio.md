@@ -12,7 +12,7 @@ El bucket de artefactos debe ser privado. Los recibos requieren `OBJECT_READ` y 
 
 ## Recursos nuevos y existentes
 
-Los modos de plataforma, bucket y base son independientes.
+`Services mode` permite elegir `Create new AIDP` o `Use existing AIDP`. Los modos de plataforma, bucket y base son independientes.
 
 | Recurso | `new` | `existing` |
 | --- | --- | --- |
@@ -28,10 +28,9 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 
 | Campo | Uso y condición |
 | --- | --- |
-| `governance_operation` | `install`, `resume`, `update`, `redeploy` o `rollback`; valor inicial `install`. |
-| `aidp_mode` | Plataforma `new` o `existing`; valor inicial del formulario `existing`. |
+| `aidp_mode` | `Services mode`: `Create new AIDP` (`new`) o `Use existing AIDP` (`existing`); valor inicial `existing`. |
 | `existing_ai_data_platform_ocid` | Selector de plataformas AIDP; obligatorio y visible en existing. |
-| `existing_workspace_key` | UUID canónico del workspace de esa plataforma; obligatorio en existing. |
+| `existing_workspace_key` | `Existing workspace`: selector `oci_aidp_workspaces` de workspaces reales de `existing_ai_data_platform_ocid`; conserva su UUID canónico. Obligatorio y visible en existing. |
 | `identity_domain_id` | Dominio seleccionado desde `oci_identity_domains`; se guarda su OCID. |
 | `admin_user_ocid` | Administrador activo del dominio, listado por `oci_aidp_administrators`; se guarda su OCID estable. |
 | `artifacts_mode` | Bucket `new` o `existing`; valor inicial `existing`. |
@@ -42,7 +41,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `existing_autonomous_database_ocid` | Sólo en existing: OCID exacto de la Lakehouse compatible. |
 | `autonomous_database_admin_password` | Campo secreto sin valor predeterminado. Su obligatoriedad efectiva depende de la ruta de plataforma/base y de la asociación registrada. |
 
-La UI agrupa plataforma/operación en `aidp_platform`, dominio/administrador en `identity`, bucket en `artifacts`, modelo en `enterprise_ai` y Autonomous en `database`. El renderer común de CTN controla presentación y orden.
+La UI agrupa plataforma en `aidp_platform`, dominio/administrador en `identity`, bucket en `artifacts`, modelo en `enterprise_ai` y Autonomous en `database`. El renderer común de CTN controla presentación y orden. El formulario instala con la operación predeterminada `install`; no ofrece un selector de mantenimiento. Los comandos administrativos y de recuperación permanecen disponibles según el [contrato de operación](contracts.md#operaciones).
 
 ### Cuándo proporcionar ADMIN
 
@@ -57,7 +56,7 @@ La contraseña tiene entre 12 y 30 caracteres. La validación Terraform exige ma
 
 ## Ejecutar una instalación
 
-1. Selecciona una release inmutable y `install`.
+1. Selecciona una release inmutable y elige los recursos mediante `Services mode`.
 2. Completa destino, recursos, identidad, modelo y credencial ADMIN cuando corresponda.
 3. Ejecuta preflight y revisa el plan. Una ruta inicial DISABLED con bucket nuevo puede diferir la lectura de recibos hasta que exista el bucket; esto no demuestra ausencia ni autoriza grants o habilitación.
 4. Autoriza el apply según el flujo de Deploy Studio. Después de Terraform, el hook verifica almacenamiento, propiedad, identidad y recibos antes de actuar.

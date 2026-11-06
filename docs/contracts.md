@@ -22,6 +22,8 @@ Los recibos se almacenan bajo `.control/ai_data_governance/installations/<digest
 
 Para reintentar conserva `deployment_id`, operación, tag/SHA, contexto y destino. Cambiar de release en una operación pendiente no es Resume. Para actualizar se necesita un contexto de actualización autorizado sobre la misma instalación y state; no aplicar un plan que sustituya plataforma o base para simular mantenimiento.
 
+El formulario de instalación usa `install` por defecto. `Services mode` sólo selecciona plataforma nueva o existente; no cambia la operación del ciclo de vida. Para administración, la CLI conserva `aidp-governance <operación> --context <contexto-protegido>`, con `resume`, `update`, `redeploy` o `rollback` y las mismas credenciales, identidad, propiedad y controles de recuperación. Reejecutar una instalación pendiente con su mismo identificador y fuente continúa su operación `install`; no convierte una operación de mantenimiento en instalación ni permite cambiar su origen.
+
 Una operación de negocio terminada es idempotente y conserva su resultado histórico; no equivale a un healthcheck nuevo. Las verificaciones previas de identidad y memoria siguen aplicándose al ejecutar el hook.
 
 ## Estados y códigos

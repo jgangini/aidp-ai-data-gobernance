@@ -87,7 +87,37 @@ run "invalid_existing_identity_is_rejected" {
     existing_ai_data_platform_ocid = "platform-name"
     existing_workspace_key         = ""
   }
-  expect_failures = [var.existing_ai_data_platform_ocid, var.existing_workspace_key]
+  expect_failures = [output.ai_data_platform_ocid, output.workspace_key]
+}
+
+run "missing_existing_platform_ocid_is_rejected" {
+  command = plan
+  variables {
+    aidp_mode                      = "existing"
+    existing_ai_data_platform_ocid = ""
+    existing_workspace_key         = "11111111-1111-4111-8111-111111111111"
+  }
+  expect_failures = [output.ai_data_platform_ocid]
+}
+
+run "missing_existing_workspace_key_is_rejected" {
+  command = plan
+  variables {
+    aidp_mode                      = "existing"
+    existing_ai_data_platform_ocid = "ocid1.aidataplatform.oc1.test.existing"
+    existing_workspace_key         = ""
+  }
+  expect_failures = [output.workspace_key]
+}
+
+run "noncanonical_existing_workspace_key_is_rejected" {
+  command = plan
+  variables {
+    aidp_mode                      = "existing"
+    existing_ai_data_platform_ocid = "ocid1.aidataplatform.oc1.test.existing"
+    existing_workspace_key         = "AAAAAAAA-1111-4111-8111-111111111111"
+  }
+  expect_failures = [output.workspace_key]
 }
 
 run "new_platform_existing_bucket" {

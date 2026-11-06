@@ -46,6 +46,11 @@ def test_existing_selection_has_explicit_native_identity_fields():
     fields = {field["name"]: field for field in manifest["form"]["fields"]}
     assert fields["existing_ai_data_platform_ocid"]["visible_when"] == {"field": "aidp_mode", "equals": "existing"}
     assert fields["existing_workspace_key"]["visible_when"] == {"field": "aidp_mode", "equals": "existing"}
+    assert fields["existing_workspace_key"]["type"] == "select"
+    assert fields["existing_workspace_key"]["label"] == "Existing workspace"
+    assert fields["existing_workspace_key"]["options_source"] == "oci_aidp_workspaces"
+    assert fields["existing_workspace_key"]["required"] is True
+    assert fields["existing_workspace_key"]["pattern"] == "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     assert fields["admin_user_ocid"]["options_source"] == "oci_aidp_administrators"
     assert manifest["preflight"]["requires_oci_credentials"] is True
     assert manifest["post_apply"]["requires_oci_credentials"] is True
@@ -61,3 +66,18 @@ def test_existing_selection_has_explicit_native_identity_fields():
     assert fields["autonomous_database_version"]["options"] == [{"value": "26ai:DW", "label": "Oracle AI Database 26ai · AI Lakehouse (DW)"}]
     assert all(field["group"] == "database" for name, field in fields.items()
                if name.startswith(("autonomous_database", "existing_autonomous")))
+
+
+def test_installation_form_exposes_service_mode_and_keeps_administration_outside_the_form():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    fields = {field["name"]: field for field in manifest["form"]["fields"]}
+    assert "governance_operation" not in fields
+    assert fields["aidp_mode"]["label"] == "Services mode"
+    assert fields["aidp_mode"]["options"] == [
+        {"value": "new", "label": "Create new AIDP"},
+        {"value": "existing", "label": "Use existing AIDP"},
+    ]
+    variables = (ROOT / "terraform/b_variables.tf").read_text("utf-8")
+    operation = variables.split('variable "governance_operation" {', 1)[1].split('variable ', 1)[0]
+    assert 'default = "install"' in operation
+    assert '["install", "resume", "update", "redeploy", "rollback"]' in operation

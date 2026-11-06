@@ -26,6 +26,10 @@ resource "oci_database_autonomous_database" "memory" {
   }
   lifecycle {
     prevent_destroy = true
+    precondition {
+      condition     = var.autonomous_database_admin_password != ""
+      error_message = "A new database requires a 12-30 character ADMIN password with upper/lowercase and a number, without quotes or the word admin. Existing mode may omit it."
+    }
   }
 }
 
@@ -33,6 +37,10 @@ data "oci_database_autonomous_database" "existing_memory" {
   count                  = var.autonomous_database_mode == "existing" ? 1 : 0
   autonomous_database_id = var.existing_autonomous_database_ocid
   lifecycle {
+    precondition {
+      condition     = can(regex("^ocid1\\.autonomousdatabase\\.", var.existing_autonomous_database_ocid))
+      error_message = "existing_autonomous_database_ocid is required in existing mode."
+    }
     postcondition {
       condition     = self.id == var.existing_autonomous_database_ocid
       error_message = "The external memory database identity differs from the selected OCID."

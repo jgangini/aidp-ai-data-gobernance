@@ -143,6 +143,8 @@ def install():
         def run_operation(client, store, **kwargs):
             record('lifecycle-boundary')
             assert kwargs['admin'] == case['admin_user_ocid']
+            if 'expected_command' in case:
+                assert kwargs['command'] == case['expected_command']
             status = case.get('outcome', 'active')
             receipt = {'manifest': {'status': status, 'validation_stage': 'TEST_PENDING',
                 'operation': {'operation_id': kwargs['operation_id']}}}

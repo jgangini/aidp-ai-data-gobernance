@@ -32,18 +32,10 @@ variable "aidp_mode" {
 variable "existing_ai_data_platform_ocid" {
   type    = string
   default = ""
-  validation {
-    condition     = var.aidp_mode != "existing" || can(regex("^ocid1\\.aidataplatform\\.", var.existing_ai_data_platform_ocid))
-    error_message = "An explicit AIDP OCID is required for existing mode."
-  }
 }
 variable "existing_workspace_key" {
   type    = string
   default = ""
-  validation {
-    condition     = var.aidp_mode != "existing" || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.existing_workspace_key))
-    error_message = "An exact canonical workspace UUID is required for existing mode."
-  }
 }
 variable "identity_domain_id" {
   type = string
@@ -101,10 +93,6 @@ variable "existing_autonomous_database_ocid" {
   description = "Exact external Autonomous database OCID; existing resources are never adopted."
   type        = string
   default     = ""
-  validation {
-    condition     = var.autonomous_database_mode != "existing" || can(regex("^ocid1\\.autonomousdatabase\\.", var.existing_autonomous_database_ocid))
-    error_message = "existing_autonomous_database_ocid is required in existing mode."
-  }
 }
 variable "autonomous_database_version" {
   description = "Database version supplied by the Deploy Studio 26ai:DW profile transform."
@@ -131,7 +119,7 @@ variable "autonomous_database_admin_password" {
   default     = ""
   validation {
     condition = (
-      (var.autonomous_database_mode == "existing" && var.autonomous_database_admin_password == "") ||
+      var.autonomous_database_admin_password == "" ||
       (
         length(var.autonomous_database_admin_password) >= 12 &&
         length(var.autonomous_database_admin_password) <= 30 &&

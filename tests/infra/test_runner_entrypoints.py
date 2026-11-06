@@ -135,6 +135,21 @@ def test_actual_preflight_entrypoint_returns_json_for_real_string_compartment_co
     assert 'lifecycle-boundary' not in calls
 
 
+@pytest.mark.parametrize('phase', ['preflight', 'post_apply'])
+def test_installation_form_without_an_operation_uses_the_install_default(phase, tmp_path, rsa_fixture):
+    runner = stage_runner(tmp_path, rsa_fixture, phase)
+    del runner.document['inputs']['governance_operation']
+    runner.document.get('terraform_outputs', {}).pop('governance_operation', None)
+    runner.context.write_text(json.dumps(runner.document))
+    runner.case['expected_command'] = 'install'
+    (runner.root / 'runner-case.json').write_text(json.dumps(runner.case))
+    completed = execute(runner, phase)
+    result = read_result(runner, completed)
+    assert completed.returncode == 0, result
+    if phase == 'post_apply':
+        assert result['outputs']['governance_status'] == 'active'
+
+
 class ConsumerStore:
     def __init__(self):
         self.events = []

@@ -156,3 +156,19 @@ La [prerelease pública e inmutable v0.3.0-rc.2](https://github.com/jgangini/aid
 | `aidp_ai_data_governance-0.3.0-py3-none-any.whl` | 283553 | `3d730216271f342f6596dd4bffbb6a1a8bddaae68e74f9424758374ee9b23208` |
 | `aidp-governance-release.json` | 1252 | `4ac43d1aa29a21a0bafe80acf82208bdb3438d1403292b1c3e123438420fa3ff` |
 | `SHA256SUMS` | 312 | `091aced5f575a0cfe3e89fd4aaf157a09743a44e55c32053d55157ab99a9b51b` |
+
+## Candidata 0.3.0 RC3: Resource Manager y selección de servicios
+
+La prueba nativa coordinada de RC2 aprobó Validate y creó compartimento/stack, pero el job Terraform falló antes de crear AIDP: exigía Core 1.9.0 mientras Resource Manager ejecutaba 1.5.7. [Oracle confirma esa CLI](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Reference/terraformversions.htm). El binario oficial 1.5.7, descargado con SHA-256 contrastado contra HashiCorp, reprodujo cuatro errores adicionales de referencias cruzadas en validaciones de variables; esa capacidad se incorporó en [Terraform 1.9](https://github.com/hashicorp/terraform/releases/tag/v1.9.0).
+
+El mínimo es 1.5.7. Las condiciones AIDP/workspace se conservan como preconditions de outputs; la identidad de base existente, como precondition del datasource. La contraseña mantiene su validación propia de complejidad y la base nueva exige que no esté vacía. No se añaden recursos guard, state ni dependencias que difieran las tres postconditions de la base existente a apply. IAM, recursos, propiedad, prevent_destroy y asociación de memoria permanecen iguales.
+
+El formulario elimina el selector de operación y usa `Services mode`, con `Create new AIDP` / `Use existing AIDP`. Conserva `install` por defecto en TF/CLI y los comandos administrativos fuera del formulario, con sus controles de fuente, identidad y recuperación. `Existing workspace` declara la fuente contextual `oci_aidp_workspaces` del AIDP elegido y conserva UUID canónico, required y visible_when existing. La coordinación desarrolla el consumidor CTN; no se afirma que los tests del manifiesto acrediten su inventario OCI. Quedan doce campos.
+
+- Preflight ejecutado antes de cambios; mismo fallo frente al baseline vacío preservado.
+- Terraform 1.5.7 real: init con mirror de proveedores fijados y lock readonly, validate y **14 casos offline aprobados**. Dos planes create-only comprueban el alcance exacto de recursos (AIDP nuevo/existente, bucket y base nuevos); doce negativos comprueban identidades, contraseña y perfil. Entorno HOME/config aislado, claves sintéticas, red denegada por proxy y cero peticiones observadas. Comando reproducible: `python scripts/check_terraform_compatibility.py --terraform <binario-1.5.7>`. Resolución por PATH también probada.
+- La lectura positiva de una base existente requiere OCI: sólo está cubierta por mocks modernos. Sus OCID ausente/inválido se rechazan con 1.5.7 antes de leer el proveedor. No se simula esa lectura como prueba nativa.
+- Terraform moderno: fmt/validate y **23 tests con mocks aprobados**. Preflight/post-apply reales sin campo de operación, manifiesto y CLI: **83 tests aprobados**, más comprobación focalizada del selector. No se alteran los programas de agentes ni sus hashes.
+- CI separa el job `resource-manager` (1.5.7 real) de `terraform` (mocks modernos), y conserva los jobs Python completo y runner mínimo. El bootstrap añade únicamente hashes de plataforma al lock local sin upgrade; los planes aislados exigen lock readonly y no descargan proveedores.
+
+Los recursos reales existentes y la aceptación UI/OCI siguen bajo coordinación. Este chat no hace APPLY, Docker, Browser, destrucción ni publicación de RC3. Los archivos Graphify locales quedan fuera del commit y assets de release. Los resultados finales de postflight, CI y hashes de esta candidata se agregan al cerrar su preparación.

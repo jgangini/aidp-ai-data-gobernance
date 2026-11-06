@@ -48,6 +48,10 @@ terraform -chdir=terraform test
 
 Los tests Terraform usan proveedores simulados. `init` prepara los proveedores declarados; no autoriza apply ni cambios de versión. Una comprobación Python focalizada puede ejecutarse con `.venv/Scripts/python.exe -m pytest <archivo> -q`; no reemplaza el postflight final cuando corresponde.
 
+El módulo distribuido admite Terraform 1.5.7, la CLI de Resource Manager 1.5.x según [Oracle](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Reference/terraformversions.htm). Las condiciones entre variables se expresan como precondiciones de outputs, recurso o datasource; las validaciones de variables sólo consultan su propia variable. La contraseña conserva su validación de complejidad y la base nueva exige que no esté vacía. Los postconditions de la base existente conservan las comprobaciones de identidad, AVAILABLE y 26ai/DW durante el plan cuando la consulta puede resolverse.
+
+La CI separa `resource-manager`, con Terraform 1.5.7 real, del job moderno `terraform`, que ejecuta los mocks. Tras preparar los proveedores fijados con `terraform init -backend=false`, ejecuta `python scripts/check_terraform_compatibility.py --terraform <ruta-terraform-1.5.7>`. Esa preparación no usa `-upgrade`; puede añadir al lock local el hash de la plataforma de CI. El check reutiliza esos proveedores por mirror, exige el lock en modo readonly, prepara una copia aislada del módulo y credenciales efímeras, y ejecuta planes sin refresh ni acceso a OCI. Las consultas positivas de bases existentes permanecen cubiertas por los mocks modernos; no se declara validación de su lectura nativa offline.
+
 En Windows usa un basetemp nuevo dentro de `.local` si el entorno restringe los temporales. No borres temporales ajenos ni cambies assertions para obtener un pase.
 
 ## Cambiar programas distribuidos
