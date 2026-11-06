@@ -196,3 +196,23 @@ También se corrige la guía tras la evidencia nativa de coordinación: `xai.gro
 Checks focalizados: siete tests de manifiesto, 29 planes modernos con mocks y 20 casos con Terraform 1.5.7 real aprobados, con cero peticiones observadas. Los planes guardados y su JSON, inspeccionado sólo en memoria, acreditan el `display_name` default y personalizado; existing no incluye recurso AIDP. Se conservan los catorce casos anteriores y se rechazan nombres vacíos, en blanco, con controles/rutas o demasiado largos. El preparador CTN real valida default, personalizado y omisión del campo oculto en existing; el nombre declarado entra en las variables del stack.
 
 La revisión final se entrega con un nuevo PR, CI del SHA exacto y cuatro assets locales de RC4. Preflight conserva el baseline vacío fallido; no se recalibra. Los resultados completos se entregan con el PR y el manifiesto de evidencia. No merge, publicación, OCI, Docker o Browser desde este chat; los archivos locales Graphify y datos privados quedan fuera del commit y assets.
+
+## Publicación 0.3.0 RC5: formulario declarativo schema 2
+
+La coordinación integró el [PR #3](https://github.com/jgangini/aidp-ai-data-gobernance/pull/3) en main mediante `97c31c94805e68a183b82af6fef24a9c32190e92` y publicó la [prerelease pública v0.3.0-rc.5](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.5), fijada al código validado `8f977c57a90eb72777f8003d78af1ced7cd10e58`. La API GitHub confirma `immutable=true`, `draft=false`, `prerelease=true` y publicación el 6 de noviembre de 2026 a las 09:38:55 de Lima. Los tamaños y digests de sus cuatro assets coinciden con los archivos preparados localmente; esta comprobación contrasta la metadata publicada, sin declarar otra descarga de los payloads.
+
+El manifiesto del formulario exige schema 2: siete grupos explícitos, catorce campos referenciados exactamente una vez, credenciales primero, región en fila completa y generación de ADMIN sólo para una base nueva. Requiere el motor CTN compatible y no contiene fallback para formularios schema 1. El contexto de los hooks conserva su contrato independiente schema 1. No se modificaron recursos Terraform, hooks, runtime de agentes ni rutas de instalación.
+
+- Postflight local: **2.010 tests aprobados en 263,31 s** y compilación Python aprobada. Termina con salida 1 únicamente por el gate Sentrux. Preflight conserva el mismo fallo contra la referencia vacía original.
+- [CI de PR 42224702935](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42224702935) y [CI de push 42224656149](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42224656149) aprobadas para el SHA exacto. La primera registra 2.010 tests Python en 275,77 s, compilación, 104 pruebas del runner mínimo, 29 tests Terraform modernos y 20 casos offline con Terraform 1.5.7 real, con cero peticiones de red observadas en esos planes.
+- El parser real CTN acepta el manifiesto y rechaza catorce variantes inválidas, incluidas schema 1, ausencia de grupos, referencias duplicadas/desconocidas y generadores inválidos. El extractor real selecciona 132 archivos / 937.093 bytes, dentro de 250 / 10 MiB. Imports aislados del wheel aprobados; fuentes críticas comparadas byte por byte con el commit.
+- Graphify local actualizado para Python, fuera de los assets; extractor HCL no disponible. Sentrux: calidad 0.6999, coupling 0.07, cuatro funciones complejas, cero ciclos/god files; sin reglas custom ni reset. El gate global sigue fallando frente al baseline vacío, no se declara arquitectura aprobada.
+
+| Asset 0.3.0 RC5 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `aidp-ai-data-governance-source.zip` | 663944 | `b49d4057a2d08a96d73410d25010525f4031a4bea875e53cf58ca71006ef3b56` |
+| `aidp_ai_data_governance-0.3.0-py3-none-any.whl` | 283824 | `e149d363a23d925aa4ac7e8d4ec64bf939f56c0a948b2dea6c2d55f8f789efcf` |
+| `aidp-governance-release.json` | 3353 | `1ce5dffec4e17b472d02b2f868d697ba6d15388e294bf3e14e98a639b6dc5656` |
+| `SHA256SUMS` | 312 | `83e08c8d1e066e2222dbc02d50971cc31ac4de17e5440375f9371afad98a6e5d` |
+
+Este cierre actualiza sólo documentación después de la publicación coordinada. No altera tags ni assets y no ejecuta OCI, Docker o Browser. La aceptación funcional nativa y la persistencia de sesiones siguen separadas de esta evidencia de código y publicación.
