@@ -72,6 +72,7 @@ def test_installation_form_exposes_service_mode_and_keeps_administration_outside
     manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
     fields = {field["name"]: field for field in manifest["form"]["fields"]}
     assert "governance_operation" not in fields
+    assert fields["model_id"]["label"] == "Select Model"
     assert fields["aidp_mode"]["label"] == "Services mode"
     assert fields["aidp_mode"]["options"] == [
         {"value": "new", "label": "Create new AIDP"},

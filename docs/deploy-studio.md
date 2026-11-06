@@ -35,7 +35,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `admin_user_ocid` | Administrador activo del dominio, listado por `oci_aidp_administrators`; se guarda su OCID estable. |
 | `artifacts_mode` | Bucket `new` o `existing`; valor inicial `existing`. |
 | `artifacts_bucket_name` | Nombre explícito del bucket de artefactos. |
-| `model_id` | Modelo de los agentes desde `oci_genai_chat_models`. |
+| `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`. |
 | `autonomous_database_mode` | Base de memoria `new` o `existing`; valor inicial `new`. |
 | `autonomous_database_version` | Sólo en new: perfil `26ai:DW`; el runner produce versión `26ai` y workload `DW`. |
 | `existing_autonomous_database_ocid` | Sólo en existing: OCID exacto de la Lakehouse compatible. |

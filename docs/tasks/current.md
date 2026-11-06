@@ -110,4 +110,6 @@ Solicitud adicional del usuario: el formulario de instalación elimina `governan
 
 El campo `existing_workspace_key` pasa a selector `Existing workspace`, con fuente `oci_aidp_workspaces` contextual a `existing_ai_data_platform_ocid`. Conserva required, visibilidad existing y patrón UUID. La coordinación implementa la fuente y su consumo en CTN; este repositorio declara y verifica el contrato del manifiesto, sin consultar OCI.
 
+El campo `model_id` conserva su fuente y binding; su etiqueta es exactamente `Select Model`, según la instrucción adicional del usuario. El título compartido del grupo Agent Flow pertenece a CTN.
+
 La coordinación conserva los recursos ya creados y toda operación OCI/Docker/Browser. Este chat prepara código, CI y assets de RC3; publicación no autorizada en esta continuación. El worker Graphify mantiene sus rutas locales, que no se incorporan al candidato.

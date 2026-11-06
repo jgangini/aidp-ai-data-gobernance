@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -71,12 +72,24 @@ def rejecting_proxy():
         thread.join()
 
 
-def isolated_environment(directory, proxy):
+@contextmanager
+def provider_temporary_directory(base):
+    # Go's provider handshake uses an AF_UNIX socket on POSIX; a long checkout
+    # path can exceed its kernel limit before Terraform can load any schema.
+    location = Path('/tmp') if os.name != 'nt' else base
+    with tempfile.TemporaryDirectory(prefix='tfp-', dir=location) as directory:
+        path = Path(directory).resolve()
+        if not path.is_relative_to(location.resolve()):
+            raise RuntimeError('The provider temporary directory must remain inside its designated parent')
+        yield path
+
+
+def isolated_environment(directory, provider_temp, proxy):
     home = directory / 'home'
     home.mkdir()
     environment = {name: os.environ[name] for name in ('PATH', 'SYSTEMROOT', 'WINDIR') if name in os.environ}
     environment.update(HOME=str(home), USERPROFILE=str(home), APPDATA=str(home), LOCALAPPDATA=str(home),
-        TMP=str(directory), TEMP=str(directory), TMPDIR=str(directory),
+        TMP=str(provider_temp), TEMP=str(provider_temp), TMPDIR=str(provider_temp),
         TF_CLI_CONFIG_FILE=str(directory / 'terraform.rc'), TF_DATA_DIR=str(directory / '.terraform'),
         TF_IN_AUTOMATION='1', TF_INPUT='0', CHECKPOINT_DISABLE='1',
         OCI_CONFIG_FILE=str(directory / 'fixture-config'), OCI_CONFIG_PROFILE='DEFAULT')
@@ -142,6 +155,38 @@ def require_success(completed, stage):
         raise RuntimeError(stage + ' failed; provider diagnostics were withheld from console output')
 
 
+def validation_diagnostic(diagnostic):
+    summary = diagnostic.get('summary', '')
+    if not isinstance(summary, str) or not re.fullmatch(r'[A-Za-z][A-Za-z -]{0,159}', summary):
+        summary = 'Terraform validation diagnostic'
+    evidence = (str(diagnostic.get('summary', '')) + ' ' + str(diagnostic.get('detail', ''))).lower()
+    classifications = (
+        ('provider_socket_path_too_long', ('socket', 'too long')),
+        ('provider_socket_path_too_long', ('unix', 'bind: invalid argument')),
+        ('provider_execution_denied', ('permission denied',)),
+        ('provider_checksum_mismatch', ('checksum',)),
+        ('provider_startup_failed', ('unrecognized remote plugin message',)),
+        ('provider_startup_failed', ('plugin did not respond',)),
+        ('provider_dependency_missing', ('missing required provider',)),
+    )
+    classification = next((name for name, needles in classifications if all(item in evidence for item in needles)),
+                          'configuration_invalid')
+    return {'summary': summary, 'classification': classification}
+
+
+def validate_configuration(binary, directory, environment):
+    completed = command(binary, directory, environment, ['validate', '-json'])
+    try:
+        result = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        raise RuntimeError('Terraform 1.5.7 validate failed: structured diagnostics are unavailable') from None
+    if completed.returncode == 0 and result.get('valid') is True:
+        return
+    diagnostics = [validation_diagnostic(item) for item in result.get('diagnostics', []) if item.get('severity') == 'error']
+    print(json.dumps({'stage': 'validate', 'status': 'failed', 'diagnostics': diagnostics}), flush=True)
+    raise RuntimeError('Terraform 1.5.7 validate failed; only redacted diagnostic summaries were emitted')
+
+
 def cases():
     return [
         ('new-platform-bucket-memory', {}, NEW_CREATES),
@@ -185,11 +230,11 @@ def check_plan(binary, directory, environment, proxy, case):
 def run(binary, provider_cache):
     base = ROOT / '.local'
     base.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='terraform-compat-', dir=base) as work, rejecting_proxy() as proxy:
+    with tempfile.TemporaryDirectory(prefix='terraform-compat-', dir=base) as work, provider_temporary_directory(base) as provider_temp, rejecting_proxy() as proxy:
         directory = Path(work).resolve()
         if not directory.is_relative_to(base.resolve()):
             raise RuntimeError('The isolated check must remain inside the ignored project workspace')
-        environment = isolated_environment(directory, proxy)
+        environment = isolated_environment(directory, provider_temp, proxy)
         version = command(binary, directory, environment, ['version', '-json'])
         require_success(version, 'Terraform version')
         if json.loads(version.stdout)['terraform_version'] != '1.5.7':
@@ -197,7 +242,7 @@ def run(binary, provider_cache):
         prepare(directory, provider_cache)
         initialized = command(binary, directory, environment, ['init', '-backend=false', '-input=false', '-lockfile=readonly', '-no-color'])
         require_success(initialized, 'Offline locked provider initialization')
-        require_success(command(binary, directory, environment, ['validate', '-no-color']), 'Terraform 1.5.7 validate')
+        validate_configuration(binary, directory, environment)
         for case in cases():
             check_plan(binary, directory, environment, proxy, case)
         if proxy.attempts:

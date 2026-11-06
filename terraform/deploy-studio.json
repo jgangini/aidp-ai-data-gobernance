@@ -152,7 +152,7 @@
       },
       {
         "name": "model_id",
-        "label": "Modelo de los agentes (Agent Flow)",
+        "label": "Select Model",
         "type": "select",
         "required": true,
         "options_source": "oci_genai_chat_models",
