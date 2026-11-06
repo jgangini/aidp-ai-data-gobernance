@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import uuid
 from .errors import AidpProvisionPending
+from .errors import AidpProvisionConflict
 from .managed_memory import ensure_memory, memory_store, preflight_memory
 
 
@@ -76,6 +77,7 @@ def settings_for(context, *, applied=False):
         oci_config_file=os.environ.get('DEPLOY_STUDIO_OCI_CONFIG', ''),
         objectstorage_namespace=values.get('objectstorage_namespace', ''),
         artifacts_bucket_name=values['artifacts_bucket_name'], compartment_id=context['compartment']['id'],
+        artifacts_mode=values['artifacts_mode'],
         agent_model_id=values['model_id'], admin_user_ocid=values['admin_user_ocid'], identity_domain_id=values['identity_domain_id'],
         governance_operation=values.get('governance_operation', 'install'),
         memory_database_mode=values['autonomous_database_mode'],
@@ -182,6 +184,10 @@ def apply(context, command='install', client_factory=None, store_factory=None):
         store = (store_factory or ReceiptStore)(client.object_storage, settings.objectstorage_namespace,
             settings.artifacts_bucket_name, settings.aidp_platform_id, workspace)
         owned_receipt, _ = store.load()
+        if owned_receipt is None:
+            from .client import MODULE_MANIFEST_PATH
+            if client._workspace_json(workspace, MODULE_MANIFEST_PATH, 'Unowned Governance control receipt') is not None:
+                raise AidpProvisionConflict('An unowned workspace installation cannot enable memory or grant roles')
         memory = ensure_memory(client, memory_store(client), command,
             lambda memory_receipt: _authorize_memory(client, settings, command, owned_receipt, memory_receipt))
         operation_id = str(uuid.uuid5(uuid.NAMESPACE_URL, context['project_id'] + ':' + context['deployment_id']))

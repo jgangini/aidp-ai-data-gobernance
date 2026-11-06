@@ -144,6 +144,14 @@ def preflight_memory(client):
         return
     api, database = sdk_clients(client)
     response = observed_platform(api, settings.aidp_platform_id)
+    planning_new_bucket = (settings.artifacts_mode == 'new' and settings.governance_operation == 'install'
+                           and response.data.ai_feature_status == 'DISABLED')
+    if planning_new_bucket:
+        admin_password()
+        if settings.memory_database_mode == 'existing':
+            verify_database(database.get_autonomous_database(settings.memory_database_id).data,
+                            settings.memory_database_id)
+        return
     store, receipt, revision = _preflight_receipt(client)
     manager = ManagedMemory(client, store, settings.governance_operation, receipt, revision, api=api, database=database)
     _preflight_admit(manager, response.data, response.headers.get('etag') or response.headers.get('ETag'))

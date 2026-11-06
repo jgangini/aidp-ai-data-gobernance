@@ -445,8 +445,35 @@ def preflight_bindings(parts, monkeypatch):
     owner.settings.aidp_mode = 'existing'
     owner.settings.governance_operation = 'install'
     owner.settings.objectstorage_namespace = 'namespace'
+    owner.settings.artifacts_mode = 'existing'
     monkeypatch.setattr(memory, 'sdk_clients', lambda _: (api, database))
     monkeypatch.setattr(memory, 'memory_store', lambda _: store)
+
+
+def test_disabled_new_bucket_preflight_only_plans_and_never_proves_receipt_absence(monkeypatch):
+    parts = harness()
+    preflight_bindings(parts, monkeypatch)
+    parts[0].settings.artifacts_mode = 'new'
+    password = Mock(return_value=PASSWORD)
+    monkeypatch.setattr(memory, 'admin_password', password)
+    monkeypatch.setattr(memory, 'memory_store', Mock(side_effect=AssertionError('Bucket not created yet')))
+    memory.preflight_memory(parts[0])
+    password.assert_called_once()
+    assert parts[2].posts == [] and parts[1].saves == []
+
+
+def test_ready_resume_reads_its_receipt_even_when_original_bucket_mode_was_new(monkeypatch):
+    parts = harness()
+    ready(parts)
+    preflight_bindings(parts, monkeypatch)
+    parts[0].settings.artifacts_mode = 'new'
+    lookup = Mock(return_value=parts[1])
+    monkeypatch.setattr(memory, 'memory_store', lookup)
+    monkeypatch.setattr(memory, 'admin_password', Mock(side_effect=AssertionError('READY must not need credentials')))
+    before = len(parts[2].posts)
+    memory.preflight_memory(parts[0])
+    lookup.assert_called_once_with(parts[0])
+    assert len(parts[2].posts) == before
 
 
 @pytest.mark.parametrize('feature', ['READY', 'ENABLING'])

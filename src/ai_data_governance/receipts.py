@@ -19,7 +19,7 @@ class ReceiptStore:
         try:
             response = self.objects.get_object(self.namespace, self.bucket, self.prefix + name)
         except Exception as error:
-            if getattr(error, 'status', None) == 404:
+            if getattr(error, 'status', None) == 404 and self._confirm_absence(name):
                 return None, None
             raise AidpProvisionError('The durable Governance receipt cannot be read') from None
         try:
@@ -30,6 +30,22 @@ class ReceiptStore:
             return json.loads(body), revision
         finally:
             response.data.close()
+
+    def _confirm_absence(self, name):
+        target = self.prefix + name
+        try:
+            response = self.objects.list_objects(self.namespace, self.bucket, prefix=target, fields='name', limit=2)
+            rows = response.data.objects
+            continuation = (response.data.next_start_with or response.headers.get('opc-next-page')
+                            or response.headers.get('OPC-Next-Page') or getattr(response.data, 'prefixes', None))
+        except Exception:
+            raise AidpProvisionError('Receipt absence could not be verified with authorized inspection') from None
+        if not isinstance(rows, list) or len(rows) > 2 or continuation:
+            raise AidpProvisionError('Receipt absence requires a complete bounded object listing')
+        names = [getattr(item, 'name', None) for item in rows]
+        if any(not isinstance(value, str) or not value.startswith(target) for value in names):
+            raise AidpProvisionError('Receipt inspection returned invalid object identities')
+        return target not in names
 
     def write(self, name, value, revision):
         body = json.dumps(value, sort_keys=True, allow_nan=False, separators=(',', ':')).encode()

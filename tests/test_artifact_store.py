@@ -1,6 +1,7 @@
 """Immutable candidate artifacts retain installation scope and verified bytes."""
 
 import hashlib
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,6 +22,12 @@ class ScopedObjects(Objects):
     def put_object(self, namespace, bucket, key, body, **kwargs):
         self.calls.append(('put', namespace, bucket, key, kwargs))
         return super().put_object(namespace, bucket, (namespace, bucket, key), body, **kwargs)
+
+    def list_objects(self, namespace, bucket, *, prefix, fields, limit):
+        names = sorted(key for (ns, location, key) in self.rows
+                       if ns == namespace and location == bucket and key.startswith(prefix))
+        return SimpleNamespace(data=SimpleNamespace(objects=[SimpleNamespace(name=name) for name in names[:limit]],
+            next_start_with=names[limit] if len(names) > limit else None), headers={})
 
 
 def store(objects, *, namespace='namespace', bucket='artifacts', platform='platform', workspace='workspace', clock=None):

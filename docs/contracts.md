@@ -57,3 +57,5 @@ El runner, el contexto y su acceso al bucket de recibos son frontera de confianz
 ## Memoria de agentes
 
 El modelo ya pertenece al bundle Governance y su selector tiene consumidor. Los grafos usan el proxy nativo AIDP como checkpointer; el instalador crea o reutiliza Autonomous AI Lakehouse 26ai y habilita AI mediante el SDK 2.189.0, con CAS/lease y work request propio. No se copian wallets ni tablas SQL de participantes de Kits. El [contrato de memoria](agent-memory.md) registra los campos consumidos, credencial ADMIN protegida sin wallet, la evidencia indirecta de asociación y las guardas de reanudación y mantenimiento. READY por sí solo no autoriza adoptar una base ajena.
+
+La ausencia de recibos sólo se acepta con lectura/inspección autorizada: GET404 requiere listado exacto completo sin el objeto; 404 ambiguo, listado paginado o metadata inválida bloquean antes del bootstrap. La guarda aplica tanto a negocio como a memoria y al lock. No se amplía IAM automáticamente. Un control de workspace ajeno sin recibo propio también bloquea antes de nuevas habilitaciones o grants.

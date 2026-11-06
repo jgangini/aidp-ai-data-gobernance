@@ -12,6 +12,7 @@ def context():
         'inputs': {'aidp_mode': 'existing', 'existing_ai_data_platform_ocid': 'ocid1.aidataplatform.oc1.us-chicago-1.test',
         'existing_workspace_key': '11111111-1111-4111-8111-111111111111', 'identity_domain_id': 'ocid1.domain.oc1..test',
         'admin_user_ocid': 'ocid1.user.oc1..test', 'artifacts_bucket_name': 'artifacts',
+        'artifacts_mode': 'existing',
         'autonomous_database_mode': 'existing',
         'existing_autonomous_database_ocid': 'ocid1.autonomousdatabase.oc1.us-chicago-1.test',
         'model_id': 'ocid1.generativeaimodel.oc1.us-chicago-1.test'}}
@@ -160,6 +161,7 @@ def administrator_harness(monkeypatch, *, existing_receipt, memory_receipt=None)
     client._oci_config = {'user': 'operator'}
     client._role_principal_ocids.side_effect = lambda _: (users, set())
     client._governance_workspace.side_effect = lambda: events.append('workspace') or 'workspace'
+    client._workspace_json.return_value = None
     store.load.side_effect = lambda: events.append('receipt') or (existing_receipt, 'revision')
 
     def grant(user):
@@ -240,6 +242,18 @@ def test_pending_memory_blocks_role_regrant_before_the_business_receipt_exists(m
     client.ensure_selected_admin.assert_not_called()
     operation.assert_not_called()
     assert events == ['workspace', 'receipt']
+
+
+def test_unowned_workspace_receipt_blocks_memory_and_initial_role_grant(monkeypatch):
+    client, store, operation, _ = administrator_harness(monkeypatch, existing_receipt=None)
+    client._workspace_json.return_value = {'phase': 'active'}
+    enable = Mock(side_effect=AssertionError('Unowned workspace must fail before enabling memory'))
+    monkeypatch.setattr(cli, 'ensure_memory', enable)
+    with pytest.raises(AidpProvisionConflict, match='unowned workspace'):
+        cli.apply(bootstrap_context(), client_factory=lambda _: client, store_factory=lambda *_: store)
+    client.ensure_selected_admin.assert_not_called()
+    enable.assert_not_called()
+    operation.assert_not_called()
 
 
 @pytest.mark.parametrize('field,value', [('autonomous_database_id', 'ocid1.autonomousdatabase.oc1..foreign'),
