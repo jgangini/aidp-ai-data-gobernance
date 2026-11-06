@@ -66,6 +66,26 @@ def _native_identity(values):
     return platform, workspace
 
 
+def _compartment_id(context, applied):
+    compartment = context['compartment']
+    if applied:
+        if not isinstance(compartment, dict):
+            raise ValueError('Post-apply requires the resolved compartment object')
+        value = compartment.get('id')
+    else:
+        if not isinstance(compartment, str) or not compartment.strip():
+            raise ValueError('Preflight requires the requested compartment string')
+        mode = context['compartment_mode']
+        if mode == 'new':
+            return ''
+        if mode != 'existing':
+            raise ValueError('Invalid requested compartment mode')
+        value = compartment
+    if not isinstance(value, str) or not value.startswith(('ocid1.compartment.', 'ocid1.tenancy.')):
+        raise ValueError('A resolved compartment OCID is required')
+    return value
+
+
 def settings_for(context, *, applied=False):
     values = dict(context['inputs'])
     if applied:
@@ -76,7 +96,7 @@ def settings_for(context, *, applied=False):
         workspace_key=workspace, aidp_workspace_name=values.get('workspace_name', ''),
         oci_config_file=os.environ.get('DEPLOY_STUDIO_OCI_CONFIG', ''),
         objectstorage_namespace=values.get('objectstorage_namespace', ''),
-        artifacts_bucket_name=values['artifacts_bucket_name'], compartment_id=context['compartment']['id'],
+        artifacts_bucket_name=values['artifacts_bucket_name'], compartment_id=_compartment_id(context, applied),
         artifacts_mode=values['artifacts_mode'],
         agent_model_id=values['model_id'], admin_user_ocid=values['admin_user_ocid'], identity_domain_id=values['identity_domain_id'],
         governance_operation=values.get('governance_operation', 'install'),
@@ -133,12 +153,22 @@ def _result_status(result):
     return 3 if 'pending' in statuses else 0
 
 
-def preflight(context, client_factory=None):
+def _runner_client(settings, client_factory):
+    if client_factory is not None:
+        return client_factory(settings)
+    for name in ('DEPLOY_STUDIO_OCI_CONFIG', 'DEPLOY_STUDIO_OCI_KEY'):
+        value = os.environ.get(name)
+        if not value or not Path(value).is_file():
+            raise ValueError('The protected runner credential files are required')
     from .native_client import NativeClient
+    return NativeClient(settings)
+
+
+def preflight(context, client_factory=None):
     from .administrators import verify_administrator, verify_operator
     from .package_loader import load_package
     settings = settings_for(context)
-    client = (client_factory or NativeClient)(settings)
+    client = _runner_client(settings, client_factory)
     try:
         load_package()
         verify_administrator(client, settings.identity_domain_id, settings.admin_user_ocid,
@@ -169,14 +199,13 @@ def _authorize_memory(client, settings, command, owned_receipt, memory_receipt):
 
 
 def apply(context, command='install', client_factory=None, store_factory=None):
-    from .native_client import NativeClient
     from .receipts import ReceiptStore
     from .administrators import verify_administrator, verify_operator
     from .lifecycle import run_operation
     settings = settings_for(context, applied=True)
     if not settings.aidp_platform_id or not settings.objectstorage_namespace:
         raise ValueError('Terraform must return the selected native platform and storage bindings')
-    client = (client_factory or NativeClient)(settings)
+    client = _runner_client(settings, client_factory)
     try:
         verify_administrator(client, settings.identity_domain_id, settings.admin_user_ocid, require_roles=False)
         verify_operator(client, settings.identity_domain_id)
@@ -206,11 +235,11 @@ def main(argv=None):
     parser.add_argument('command', choices=['preflight', 'apply', *sorted(OPERATIONS)])
     parser.add_argument('--context', default=os.environ.get('DEPLOY_STUDIO_CONTEXT'))
     args = parser.parse_args(argv)
-    if not args.context:
-        parser.error('Deploy Studio context path is required')
-    result_path = os.environ.get('DEPLOY_STUDIO_OUTPUT')
+    result_path = os.environ.get('DEPLOY_STUDIO_RESULT' if args.command == 'preflight' else 'DEPLOY_STUDIO_OUTPUT')
     result, status = {}, 0
     try:
+        if not args.context:
+            raise ValueError('Deploy Studio context path is required')
         context = json.loads(Path(args.context).read_text(encoding='utf-8'))
         result = preflight(context) if args.command == 'preflight' else apply(context,
             context['inputs'].get('governance_operation', 'install') if args.command == 'apply' else args.command)

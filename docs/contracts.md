@@ -71,6 +71,15 @@ La API de archivos de workspace no aporta un CAS observado. El lease coordina wo
 
 Limita el acceso de escritura al bucket de controles a las identidades autorizadas. Quien puede alterar recibos y políticas del bucket está dentro de la frontera de confianza.
 
-El CLI recibe `DEPLOY_STUDIO_CONTEXT`, credenciales en `DEPLOY_STUDIO_OCI_CONFIG`, secretos en `DEPLOY_STUDIO_SECRETS` y escribe el resultado en `DEPLOY_STUDIO_OUTPUT`. Los mensajes upstream se redactan. No se publican `.oci`, claves, state, secretos, recibos reales ni logs privados en Git o releases.
+El CLI recibe `DEPLOY_STUDIO_CONTEXT`, credenciales protegidas en `DEPLOY_STUDIO_OCI_CONFIG` y `DEPLOY_STUDIO_OCI_KEY`, y secretos en `DEPLOY_STUDIO_SECRETS`. Exige ambos archivos de credenciales; no recurre a una configuración local por defecto. Los mensajes upstream se redactan. No se publican `.oci`, claves, state, secretos, recibos reales ni logs privados en Git o releases.
+
+El contrato del runner depende de la fase:
+
+| Fase | Contexto de compartimento | Archivo de resultado JSON |
+| --- | --- | --- |
+| Preflight | `compartment` es un string: nombre solicitado con `compartment_mode=new`, OCID con `existing`. Un nombre nuevo aún no identifica un recurso OCI. | `DEPLOY_STUDIO_RESULT` |
+| Post-apply | `compartment` es un objeto con `id` resuelto; los bindings aplicados llegan en `terraform_outputs`. | `DEPLOY_STUDIO_OUTPUT` |
+
+No se usa la variable de la otra fase como alternativa. También los errores de contexto o credenciales se escriben como JSON en el archivo correspondiente. El manifiesto declara todas las claves que el hook puede devolver en `outputs`; Deploy Studio rechaza salidas no declaradas.
 
 Las herramientas conservan la protección del esquema framework, el rechazo de SQL arbitrario y la admisión explícita de efectos. El proceso de evaluación no aísla a un worker autorizado malicioso; la protección del runner y sus permisos sigue siendo necesaria.

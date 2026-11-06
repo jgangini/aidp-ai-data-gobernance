@@ -28,3 +28,12 @@ jobs:
       - run: terraform init -backend=false
       - run: terraform validate
       - run: terraform test
+  runner-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install oci==2.184.1 httpx==0.28.1 pydantic==2.11.10 pytest==8.4.1
+      - run: python -m pytest tests/infra/test_runner_entrypoints.py tests/test_managed_memory.py -q

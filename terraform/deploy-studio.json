@@ -264,7 +264,13 @@
     "resource_ownership",
     "autonomous_database_id",
     "autonomous_database_mode",
-    "memory_status"
+    "memory_status",
+    "governance_status",
+    "validation_stage",
+    "operation_id",
+    "outcome_status",
+    "failed_operation_id",
+    "failed_operation_type"
   ],
   "artifacts": [],
   "preflight": {

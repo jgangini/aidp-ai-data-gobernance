@@ -62,6 +62,10 @@ Preserva identidades, condiciones CAS, límites de efectos y controles de datos.
 
 La CI ejecuta pytest, compilación y Terraform fmt/validate/test. Los tests cubren permisos, bindings, assembly, inventario, entrega documental, memoria, recibos, incertidumbre y restauración; no invocan OCI ni modelos reales.
 
+El job `runner-contract` usa Python 3.12 con OCI 2.184.1, httpx 0.28.1 y Pydantic 2.11.10, las dependencias preinstaladas del runner CTN, más pytest 8.4.1 para las pruebas. No instala el paquete ni sus requisitos de agentes. Ejecuta `python -m pytest tests/infra/test_runner_entrypoints.py tests/test_managed_memory.py -q`.
+
+La suite lanza los entrypoints distribuidos como subprocesos con entorno saneado, contexto exacto por fase, archivo de resultado inicialmente vacío y credenciales efímeras generadas por el test. Conserva el parsing, Signer y resultado reales; simula transportes y fronteras de efectos de memoria/operación nativa. Bloquea red e imports de agentes. Contrasta outputs con el consumidor CTN capturado y su hash. Para probar otro intérprete compatible puede definirse `GOVERNANCE_RUNNER_PYTHON` con su ruta absoluta. Esta regresión comprueba el contrato del runner; la instalación OCI requiere aceptación coordinada.
+
 Sentrux tiene un gate vigente fallido frente al baseline inicial conservado. No se recalibra para ocultar degradaciones; cero ciclos no significa gate aprobado. No hay reglas custom. Graphify no está configurado.
 
 Las versiones del entorno local y de los paquetes nativos son contratos distintos. Cambiar el SDK del runner no acredita paridad del runtime de agentes. Los tests locales no prueban conversaciones, schedule real ni persistencia de sesiones; la instalación termina en `TEST_PENDING` y esos resultados requieren aceptación funcional separada.

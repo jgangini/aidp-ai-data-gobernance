@@ -18,6 +18,14 @@ def context():
         'model_id': 'ocid1.generativeaimodel.oc1.us-chicago-1.test'}}
 
 
+def preflight_context(compartment_mode='existing'):
+    document = context()
+    document['compartment'] = (document['compartment']['id'] if compartment_mode == 'existing'
+                               else 'aidp-modules-test')
+    document['compartment_mode'] = compartment_mode
+    return document
+
+
 @pytest.mark.parametrize('field,value', [('aidp_mode','adopt'),('existing_workspace_key','foreign'),('admin_user_ocid','email@example.com'),('governance_operation','delete')])
 def test_invalid_bindings_fail_before_credential_or_network_access(field, value):
     document = context()
@@ -40,7 +48,7 @@ def test_preflight_verifies_selected_user_and_effective_roles(monkeypatch):
     client._oci_config = {'tenancy': 'tenancy', 'user': 'operator'}
     client._role_principal_ocids.return_value = ({'operator'}, set())
     client._oci.identity.IdentityClient.return_value = iam
-    result = cli.preflight(context(), lambda settings: client)
+    result = cli.preflight(preflight_context(), lambda settings: client)
     assert result['inputs']['home_region'] == 'us-chicago-1'
     verify.assert_called_once_with(client, 'ocid1.domain.oc1..test', 'ocid1.user.oc1..test', require_roles=True)
     client._request.assert_not_called()
@@ -83,7 +91,7 @@ def test_rollback_dispatch_uses_the_existing_runner_contract(command, tmp_path, 
     path.write_text(json.dumps(document))
     apply = Mock(return_value={'outputs': {'governance_status': 'rollback_complete'}, 'events': [], 'artifacts': []})
     monkeypatch.setattr(cli, 'apply', apply)
-    assert cli.settings_for(document).admin_user_ocid == document['inputs']['admin_user_ocid']
+    assert cli.settings_for(preflight_context()).admin_user_ocid == document['inputs']['admin_user_ocid']
     assert cli.main([command, '--context', str(path)]) == 0
     apply.assert_called_once_with(document, 'rollback')
     assert json.loads(capsys.readouterr().out)['outputs']['governance_status'] == 'rollback_complete'
@@ -276,3 +284,48 @@ def test_ctn_output_environment_receives_the_hook_result(tmp_path, monkeypatch, 
     assert cli.main(['apply', '--context', str(path)]) == 0
     assert json.loads(output.read_text()) == expected
     assert capsys.readouterr().out == ''
+
+
+@pytest.mark.parametrize('mode,expected', [('new', ''), ('existing', 'ocid1.compartment.oc1..test')])
+def test_preflight_compartment_matches_the_requested_ctn_shape(mode, expected):
+    settings = cli.settings_for(preflight_context(mode))
+    assert settings.compartment_id == expected
+
+
+def test_post_apply_uses_only_the_resolved_compartment_object():
+    document = bootstrap_context()
+    assert cli.settings_for(document, applied=True).compartment_id == document['compartment']['id']
+    document['compartment'] = document['compartment']['id']
+    with pytest.raises(ValueError, match='resolved compartment object'):
+        cli.settings_for(document, applied=True)
+
+
+def test_preflight_does_not_treat_post_apply_shape_as_an_alias():
+    document = preflight_context()
+    document['compartment'] = {'id': document['compartment']}
+    with pytest.raises(ValueError, match='requested compartment string'):
+        cli.settings_for(document)
+
+
+def test_preflight_context_failure_writes_result_without_using_post_apply_output(tmp_path, monkeypatch, capsys):
+    result, other = tmp_path / 'result.json', tmp_path / 'output.json'
+    result.write_bytes(b'')
+    other.write_text('must remain unchanged')
+    monkeypatch.delenv('DEPLOY_STUDIO_CONTEXT', raising=False)
+    monkeypatch.setenv('DEPLOY_STUDIO_RESULT', str(result))
+    monkeypatch.setenv('DEPLOY_STUDIO_OUTPUT', str(other))
+    assert cli.main(['preflight']) == 1
+    assert json.loads(result.read_text())['events'][0]['status'] == 'failed'
+    assert other.read_text() == 'must remain unchanged'
+    assert capsys.readouterr().out == ''
+
+
+@pytest.mark.parametrize('missing', ['DEPLOY_STUDIO_OCI_CONFIG', 'DEPLOY_STUDIO_OCI_KEY'])
+def test_runner_requires_explicit_credential_files_without_default_discovery(tmp_path, monkeypatch, missing):
+    for name in ['DEPLOY_STUDIO_OCI_CONFIG', 'DEPLOY_STUDIO_OCI_KEY']:
+        path = tmp_path / name
+        path.write_text('test fixture')
+        monkeypatch.setenv(name, str(path))
+    monkeypatch.delenv(missing)
+    with pytest.raises(ValueError, match='protected runner credential files'):
+        cli._runner_client(SimpleNamespace(), None)
