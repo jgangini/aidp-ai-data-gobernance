@@ -1,0 +1,53 @@
+"""Cross-file checks for the distributed hook closure and native resource contract.
+
+Consumer support for oci_aidp_administrators is tested by the coordinating
+Deploy Studio repository; these tests do not certify that integration.
+"""
+
+import json
+from pathlib import Path
+import re
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_form_and_preflight_inputs_exist_in_terraform():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    declared = set(re.findall(r'variable "([a-z0-9_]+)"', (ROOT / "terraform/b_variables.tf").read_text("utf-8")))
+    form = {field["name"] for field in manifest["form"]["fields"]}
+    runtime = set(manifest["preflight"]["output_inputs"])
+    assert form | runtime <= declared
+    assert "admin_user_ocid" in form and "identity_domain_id" in form
+    assert not {"admin_username", "admin_password", "admin_password_hash"} & form
+    assert manifest["project_id"] == "aidp-ai-data-governance"
+
+
+def test_hook_distribution_has_the_unique_model_and_agent_sources():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    paths = manifest["post_apply"]["include_paths"]
+    assert "src/ai_data_governance" in paths
+    assert "requirements.txt" in paths
+    for relative in paths:
+        path = (ROOT / relative).resolve()
+        assert path.is_relative_to(ROOT) and path.exists()
+        assert not {".oci", ".local", ".git", "frontend"} & set(path.parts)
+    package = ROOT / "src/ai_data_governance"
+    model = json.loads((package / "aidp/manifest.json").read_text("utf-8"))
+    assert len(model["model"]["tables"]) == 18
+    assert len(model["agents"]) == 2
+    assert len(model["workflows"]) == 1
+    for resource in model["model"]["tables"] + model["agents"] + model["workflows"] + model["compute"]:
+        assert (package / resource).is_file()
+
+
+def test_existing_selection_has_explicit_native_identity_fields():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    fields = {field["name"]: field for field in manifest["form"]["fields"]}
+    assert fields["existing_ai_data_platform_ocid"]["visible_when"] == {"field": "aidp_mode", "equals": "existing"}
+    assert fields["existing_workspace_key"]["visible_when"] == {"field": "aidp_mode", "equals": "existing"}
+    assert fields["admin_user_ocid"]["options_source"] == "oci_aidp_administrators"
+    assert manifest["preflight"]["requires_oci_credentials"] is True
+    assert manifest["post_apply"]["requires_oci_credentials"] is True
+    assert manifest["preflight"]["secret_inputs"] == []
+    assert manifest["post_apply"]["secret_inputs"] == []

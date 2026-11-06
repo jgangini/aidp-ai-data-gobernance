@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aidp-ai-data-governance"
+version = "0.1.0"
+description = "Independent AIDP Governance agents, native resources and resumable installer"
+requires-python = ">=3.11"
+dependencies = ["pydantic==2.11.10", "oci==2.160.3", "httpx==0.28.1", "langgraph==1.2.16", "langchain-core==1.7.3"]
+
+[project.optional-dependencies]
+test = ["pytest==8.4.1", "jsonschema==4.26.0"]
+
+[project.scripts]
+aidp-governance = "ai_data_governance.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ai_data_governance = ["aidp/**/*.json", "aidp/**/*.py", "aidp/**/*.md", "aidp/**/*.txt", "package/*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]

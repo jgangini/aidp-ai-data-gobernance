@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "project_id": "aidp-ai-data-governance",
+  "terraform": {"path": "terraform", "package_oci_credentials": false},
+  "capabilities": {
+    "compartment_modes": ["new", "existing"],
+    "default_compartment_name": "aidp-governance",
+    "requires_genai_region": true,
+    "database_profile": "none",
+    "region_selection": "subscribed_compatible",
+    "regional_requirements": ["aidp", "genai_chat"]
+  },
+  "presentation": {
+    "title": "AI Data Governance",
+    "summary": "Instala dos agentes AIDP en TEST, dieciocho tablas y un workflow documental. La instalación no acredita aceptación funcional ni publica el agente consultivo en producción.",
+    "tags": ["AIDP", "Governance", "LangGraph", "Master Catalog"],
+    "href": "https://github.com/jgangini/aidp-ai_data_governance"
+  },
+  "run_steps": [
+    {"key": "queue", "label": "En cola"},
+    {"key": "credentials", "label": "Identidad y autorización"},
+    {"key": "plan", "label": "Revisar recursos"},
+    {"key": "apply", "label": "Preparar plataforma y artefactos"},
+    {"key": "artifacts", "label": "Instalar Governance y verificar recibos"},
+    {"key": "complete", "label": "Candidato TEST instalado"}
+  ],
+  "form": {
+    "fields": [
+      {"name": "governance_operation", "label": "Operación de Governance", "type": "select", "required": true, "default": "install", "options": [{"value": "install", "label": "Instalar candidato"}, {"value": "resume", "label": "Reanudar la misma operación"}, {"value": "update", "label": "Actualizar instalación propia"}, {"value": "redeploy", "label": "Redesplegar instalación propia"}]},
+      {"name": "aidp_mode", "label": "Plataforma AIDP", "type": "select", "required": true, "default": "existing", "options": [{"value": "new", "label": "Crear plataforma"}, {"value": "existing", "label": "Usar plataforma existente"}]},
+      {"name": "existing_ai_data_platform_ocid", "label": "OCID de plataforma existente", "type": "text", "required": true, "visible_when": {"field": "aidp_mode", "equals": "existing"}, "pattern": "^ocid1\\.aidataplatform\\..+$"},
+      {"name": "existing_workspace_key", "label": "Clave del workspace existente", "type": "text", "required": true, "visible_when": {"field": "aidp_mode", "equals": "existing"}, "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+      {"name": "identity_domain_id", "label": "Identity Domain", "type": "text", "required": true, "pattern": "^ocid1\\.domain\\..+$"},
+      {"name": "admin_user_ocid", "label": "Administrador AIDP elegible", "type": "select", "required": true, "options_source": "oci_aidp_administrators"},
+      {"name": "artifacts_mode", "label": "Bucket de artefactos", "type": "select", "required": true, "default": "existing", "options": [{"value": "new", "label": "Crear bucket"}, {"value": "existing", "label": "Usar bucket existente"}]},
+      {"name": "artifacts_bucket_name", "label": "Nombre del bucket de artefactos", "type": "text", "required": true, "pattern": "^[A-Za-z0-9._-]{1,128}$", "min_length": 1, "max_length": 128},
+      {"name": "model_id", "label": "Modelo OCI Generative AI", "type": "select", "required": true, "options_source": "oci_genai_chat_models"}
+    ]
+  },
+  "outputs": ["ai_data_platform_ocid", "workspace_key", "workspace_name", "aidp_mode", "artifacts_bucket_name", "artifacts_mode", "objectstorage_namespace", "compartment_ocid", "region", "identity_domain_id", "admin_user_ocid", "model_id", "resource_ownership"],
+  "artifacts": [],
+  "preflight": {
+    "entrypoint": "terraform/m_preflight.py",
+    "timeout_seconds": 300,
+    "requires_oci_credentials": true,
+    "secret_inputs": [],
+    "output_inputs": ["home_region"],
+    "runtime_fields": [{"name": "home_region", "label": "Región principal de la tenancy", "type": "text", "required": true, "pattern": "^[a-z]{2}-[a-z0-9-]+-[0-9]+$"}]
+  },
+  "post_apply": {
+    "entrypoint": "terraform/hooks/post_apply.py",
+    "include_paths": ["src/ai_data_governance", "requirements.txt"],
+    "timeout_seconds": 3600,
+    "requires_oci_credentials": true,
+    "secret_inputs": []
+  }
+}
