@@ -1,54 +1,53 @@
-# Memoria de agentes en Governance
+# Memoria de agentes
 
-Governance selecciona el modelo de sus agentes y aprovisiona o reutiliza Oracle Autonomous AI Lakehouse para la memoria administrada de AIDP. El instalador vincula la base mediante la API de control plane; los agentes conservan su proxy de memoria nativo. No se copian las tablas SQL de participantes de Starter Kits.
+Governance configura el modelo de los agentes y la base que respalda la memoria administrada por AIDP. Terraform crea o reutiliza Autonomous AI Lakehouse 26ai/DW; el hook habilita las funciones AI mediante el control plane y registra su operación durable.
 
-## Runtime y modelo
+## Runtime
 
-`model_id` se selecciona en Deploy Studio, dentro de `enterprise_ai`, y llega al bundle y a los clientes LLM de los dos agentes. `native_governance.py` y `native_documentary.py` usan `oracle_memory_clients.client.AsyncProxyCheckpointClient`, con identidades separadas y `flow_setup` para la sesión. Los grafos compilan con ese cliente como checkpointer.
+Los dos agentes usan `AsyncProxyCheckpointClient` de `oracle_memory_clients`, con identificadores separados. Sus grafos compilan con ese checkpointer y el contexto de sesión nativo de `flow_setup`.
 
-El proxy usa `MEMORY_SERVER_URL`, después `MEMORY_URL` y finalmente `http://127.0.0.1:21100`. El agente no abre una conexión `oracledb`, no recibe ADMIN/DSN/wallet y no administra tablas privadas del proveedor. Las dieciocho tablas Delta del catálogo tienen otra finalidad. Oracle confirma que sesiones y memoria residen en la Lakehouse configurada para AIDP. [AI Memory](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/ai-memory.html).
+El proxy se obtiene de `MEMORY_SERVER_URL`, después `MEMORY_URL` y finalmente `http://127.0.0.1:21100`. Los agentes no reciben ADMIN, DSN o wallet, ni abren una conexión `oracledb` o administran tablas privadas de memoria. Las tablas Delta del catálogo tienen otra finalidad. Oracle describe el almacenamiento de sesiones y memoria en [Agent Memory](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/agent-memory.html).
 
-## Formulario y Terraform
+## Base y credencial
 
-El schema 1 usa `database_profile=new_or_existing` y `existing_database_wallet=none`. Todos los campos siguientes pertenecen al grupo `database` del renderer común CTN:
+El formulario usa el grupo `database`, `database_profile=new_or_existing` y `existing_database_wallet=none`. Los parámetros y sus condiciones están en la [guía de instalación](deploy-studio.md#parámetros-del-formulario).
 
-| Campo | Consumo real |
-| --- | --- |
-| `autonomous_database_mode` | Crear `new` o reutilizar `existing`. |
-| `autonomous_database_version` | Perfil nuevo `26ai:DW`; el transform entrega versión y workload a Terraform. |
-| `existing_autonomous_database_ocid` | OCID exacto de una base AVAILABLE/26ai/DW; sólo visible en existing. |
-| `autonomous_database_admin_password` | Secreto protegido para crear la base o habilitar AI; no se consume para verificar una asociación propia ya READY. |
+Una base nueva usa 26ai/DW, cuatro ECPU, 1 TB, licencia incluida, mTLS y autoscaling desactivado, con `prevent_destroy`. Una existente se consulta por OCID exacto y debe estar AVAILABLE/26ai/DW; se conserva como externa. El hook vuelve a verificar identidad y perfil contra el SDK. External describe la propiedad de infraestructura: AIDP sigue escribiendo sesiones y memoria en esa base al utilizarla.
 
-La base nueva tiene cuatro ECPU, 1 TB, licencia incluida, autoscaling desactivado, mTLS y `prevent_destroy`. Una existente se consulta sin asumir su propiedad ni cambiarla. La salida `resource_ownership.memory_database` distingue owned/external y el hook vuelve a comprobar el OCID y el perfil con el SDK.
+ADMIN se transmite por `DEPLOY_STUDIO_SECRETS.inputs` sólo al control plane; no llega a los agentes, recibos u outputs. No se solicita wallet. El campo es opcional en el formulario, pero `aidp_mode=new` lo exige en preflight y una base propia en modo `new` lo requiere en Terraform. Puede omitirse en la ruta compatible de plataforma y base existentes con memoria propia READY, cuando no hace falta habilitar AI.
 
-No hay wallet ZIP ni contraseña de wallet. La credencial ADMIN llega únicamente por `DEPLOY_STUDIO_SECRETS.inputs`, se usa en control plane y no se escribe en recibos ni outputs. Terraform conserva secretos sensibles en state para una base propia: `sensitive` evita mostrarlos, no los cifra; el state del runner requiere protección. Para mantener ese recurso propio Terraform necesita su credencial declarada. En existing, el valor puede estar vacío si sólo se verifica una asociación propia READY; preflight exige el secreto cuando la ruta realmente puede habilitar AI.
+Terraform puede conservar la contraseña de la base propia en state. `sensitive` evita mostrarla, no la cifra: el state requiere protección. No se publican state, credenciales ni recibos reales.
 
-## SDK y asociación durable
+## Asociación inicial
 
-El SDK del runner está fijado en `oci==2.189.0`, con lock actualizado y regresiones. La versión anterior 2.160.3 no incluía el modelo ni la operación necesarios. Esto no cambia los paquetes del runtime nativo de agentes ni acredita su paridad de versiones.
+El controlador usa el SDK OCI fijado en `requirements.txt` y `EnableAiFeatureDetails(vector_db_id, vector_db_admin_cred)`. La operación soportada es `enable_ai_feature`; no se ejecuta SQL de memoria. Referencias: [gestión de AI](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/ai-feature-enablement.html), [modelo de habilitación](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/models/oci.ai_data_platform.models.EnableAiFeatureDetails.html) y [cliente AIDP](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/client/oci.ai_data_platform.AiDataPlatformClient.html).
 
-`managed_memory.py` usa `EnableAiFeatureDetails(vector_db_id, vector_db_admin_cred)` y `enable_ai_feature`. No llama a SQL. El contrato está documentado en [AI Feature Management](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/ai-feature-enablement.html), [modelo de habilitación](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/models/oci.ai_data_platform.models.EnableAiFeatureDetails.html) y [cliente AIDP](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/client/oci.ai_data_platform.AiDataPlatformClient.html).
+1. Se verifica la plataforma ACTIVE y la base compatible. Una habilitación inicial exige AI DISABLED; READY/ENABLING ajeno sin recibo propio se rechaza antes de crear otra base.
+2. Se guarda la identidad plataforma/base/ownership/operador bajo lease y recibo CAS, con ETag y retry token.
+3. La intención `submitting` se persiste antes del POST. Se envía con `if_match` y `NoneRetryStrategy`.
+4. El ACK debe aportar un work-request OCID. Se observa ese request y se verifican operación ENABLE_AI_FEATURES, plataforma, compartimento, cronología y estado.
+5. Sólo request SUCCEEDED más READY permite guardar la asociación técnica y fijar el ETag posterior.
 
-Antes del envío se verifica DISABLED y se publica un recibo CAS bajo lease, con plataforma/base/ownership/operador, ETag y retry token. Se usa `if_match` y `NoneRetryStrategy`. La intención `submitting` se guarda antes del POST; el ACK debe aportar un work-request OCID. Se observa el mismo request, comprobando operación ENABLE_AI_FEATURES, plataforma, compartimento, cronología y estado. Sólo SUCCEEDED más READY permite completar la fase técnica.
+En el plan inicial de plataforma existing DISABLED, operación install y bucket explícitamente nuevo, preflight puede diferir la lectura del recibo. Esto no demuestra ausencia ni autoriza efectos. Post-apply verifica siempre los controles; si al reanudar la memoria ya está READY, vuelve a leerlos aunque el modo original del bucket sea new.
 
-El límite temporal usa Date del servidor cuando existe; en su ausencia exige coherencia con el reloj del runner. Un runner adelantado puede bloquear la conciliación de ese caso fallback y requiere revisar sincronización, sin ampliar arbitrariamente la ventana.
+La ausencia de recibos requiere lectura e inspección autorizadas. Un GET404 aislado, un listado paginado o inválido o un objeto existente que no puede leerse bloquean el bootstrap. El grant inicial requiere ausencia de recibos tanto de memoria como de negocio; no se repone un rol revocado durante una fase intermedia.
 
-Un rechazo definido se reconoce únicamente por tipo ServiceError y pares status/code conocidos; la reanudación revalida autorización, DISABLED y ETag antes de un nuevo intento. 408/409/429, códigos desconocidos y errores de transporte son inciertos. Sin ACK verificable se conserva Pending y no se reenvía ni se adopta READY a ciegas. Ese caso necesita conciliación protegida; no existe un atajo automático que pruebe el request perdido. [Errores OCI](https://docs.oracle.com/en-us/iaas/Content/API/References/apierrors.htm).
+## Reanudación y errores
 
-## Evidencia de asociación y límites
+Un rechazo definido se reconoce por `ServiceError` y pares status/code conocidos. Resume revalida autorización, DISABLED y ETag antes de otro intento. Errores de transporte, códigos desconocidos y 408/409/429 son inciertos.
 
-El GET de plataforma publicado expone `ai_feature_status`, pero no el OCID de la base. La primera asociación se acredita **indirectamente** por el envío propio ligado a la base exacta, su work request y READY; no es un readback directo del OCID asociado. Se requiere una ventana exclusiva frente a cambios manuales. [Modelo AiDataPlatform](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/models/oci.ai_data_platform.models.AiDataPlatform.html).
+Sin ACK/work request verificable se conserva Pending y no se reenvía ni se adopta READY a ciegas. Se necesita conciliación protegida; no hay un atajo automático para demostrar ese envío perdido. Los fallos terminales se conservan y no se reparan deshabilitando AI. [Errores OCI](https://docs.oracle.com/en-us/iaas/Content/API/References/apierrors.htm).
 
-Después se fija el ETag READY. Una verificación posterior exige el mismo ETag, compartimento e identidad de base; cualquier cambio de revisión requiere conciliación, incluso si podría ser benigno. Así no se acepta silenciosamente una asociación cambiada. No se adopta una plataforma READY/ENABLING ajena sin recibo compatible, y preflight bloquea ese caso antes de crear otra ADB. En el plan inicial DISABLED con bucket explícitamente nuevo se difiere esa lectura porque el bucket aún puede no existir: no demuestra ausencia ni autoriza efectos. Post-apply siempre verifica los recibos; READY posterior vuelve a leerlos aunque el modo original del bucket siga siendo new. Un control de workspace ajeno sin recibo propio bloquea antes de habilitar memoria o conceder roles. Una base nueva no sustituye una asociación ya registrada por otro deployment.
+La cronología usa Date del servidor cuando está disponible. En su ausencia compara con el reloj del runner; un desfase puede bloquear la verificación y requiere revisar sincronización, sin ampliar arbitrariamente una ventana de aceptación.
 
-El recibo de memoria es de alcance plataforma dentro del bucket seleccionado. Su lease protege los workers que lo usan; `if_match` protege el envío concurrente frente a otros buckets/controladores. La ausencia de ambos recibos, memoria y negocio, es necesaria para el grant inicial del administrador. Un GET404 de Object Storage no prueba ausencia: se exige ListObjects autorizado, completo y acotado sobre el prefijo exacto; si aparece el recibo, hay paginación, respuesta inválida o falta de acceso, se bloquea. Esto exige OBJECT_INSPECT además de OBJECT_READ, sin conceder esos permisos automáticamente. Reanudar en la fase intermedia no repone un rol revocado.
+## Evidencia y límites
 
-Update/redeploy/rollback sólo verifican una asociación propia ya READY: no habilitan, cambian, desvinculan ni borran bases, permisos o credenciales. Deshabilitar AI puede eliminar recursos AI y nunca se usa como recuperación. No se cambian retención, sesiones ni tablas del proveedor. El rollback de artefactos conserva la base de memoria.
+El GET de plataforma expone `ai_feature_status`, pero no el OCID de la base. La asociación inicial se acredita **indirectamente** por la solicitud propia, su work request y READY, no por una lectura directa del vínculo. Se requiere una ventana exclusiva frente a cambios manuales. [Modelo AiDataPlatform](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/models/oci.ai_data_platform.models.AiDataPlatform.html).
 
-## Validación y aceptación
+Una verificación posterior exige el mismo ETag READY, compartimento e identidad de base. Cualquier revisión nueva requiere conciliación, incluso si podría ser benigna. Una base nueva no sustituye una asociación registrada por otro deployment.
 
-Las regresiones locales usan el modelo/errores reales del SDK y transporte simulado, con CAS/lease, ACK incierto, rechazos tipados, reanudación, READY ajeno, ETags, identidades, cronología y secretos. Terraform comprueba new/existing y perfiles inválidos con mocks. El hook escribe el contrato real CTN `DEPLOY_STUDIO_OUTPUT`.
+El recibo es de alcance plataforma dentro del bucket seleccionado. El lease coordina sus workers y `if_match` protege el envío frente a otros controladores; no convierte un cambio manual externo en una operación propia.
 
-`memory_status=READY` es un resultado técnico de control plane. No demuestra continuidad de sesión, aislamiento entre usuarios, persistencia efectiva de checkpoints ni calidad funcional. Esas verificaciones requieren prueba nativa autorizada. Los despliegues permanecen detenidos por el usuario: no se ejecutó OCI, APPLY, inferencia, Browser ni Docker compartido en esta tarea.
+Update/redeploy/rollback sólo verifican memoria propia READY. No habilitan, cambian, desvinculan o borran bases, permisos o credenciales. No se alteran sesiones, retención o tablas del proveedor. Deshabilitar AI puede eliminar recursos AI y no se usa como recuperación.
 
-La prueba de ausencia usa el contrato de [ListObjects](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/object_storage/client/oci.object_storage.ObjectStorageClient.html#oci.object_storage.ObjectStorageClient.list_objects) y los [permisos de Object Storage](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/objectstoragepolicyreference.htm). Un error 404 puede ocultar falta de autorización; no se equipara por sí solo a recurso inexistente.
+`memory_status=READY` es técnico. No demuestra persistencia efectiva de checkpoints, continuidad entre turnos, aislamiento entre usuarios o calidad funcional. Esas capacidades requieren aceptación nativa; no se acreditan con los tests simulados ni con la publicación de una release.

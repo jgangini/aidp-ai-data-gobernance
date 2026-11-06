@@ -1,61 +1,76 @@
-# Contratos y operación
+# Operación y recuperación
 
-## Recursos y código
+Governance se opera desde Deploy Studio sobre una instalación y un destino identificados. El [manifiesto](../terraform/deploy-studio.json) define el formulario y los hooks; el [manifiesto AIDP](../src/ai_data_governance/aidp/manifest.json) define agentes, tablas y workflow. Los hashes de los programas distribuidos están en [`package/lab.json`](../src/ai_data_governance/package/lab.json).
 
-El contrato único es `src/ai_data_governance/aidp/manifest.json`; las fuentes y hashes de paquete están en `package/lab.json` dentro del mismo módulo. Se conservan los dos agentes, 18 tablas `oci_medallion.oci_artifacts` y `wf_ai_dg_sync_master_catalog` de cuatro tareas. El esquema no identifica el bucket físico. `default` vincula el workspace seleccionado; no crea otro workspace por copiar carpetas.
+## Identidad y autorización
 
-Los grafos importables separan composición, estado y nodos en `governance_{graph,state,nodes}.py` y `documentary_{graph,state,nodes}.py`. Herramientas y efectos permanecen en consulta, transportes, repositorio, publicación y casos; los prompts tienen una fuente por agente en `aidp/workspaces/default/files/agents/`. `factories.py` exige hooks, checkpointer y efectos externos deshabilitados para evaluación portable. Los adaptadores nativos no son factories simuladas.
+El runner firma con las credenciales del operador. El dominio y el administrador se seleccionan por OCID estable; no cambian el signer. Se verifica usuario activo, dominio y roles efectivos, incluidos grupos y herencia.
 
-El assembly es explícito y determinista. Los programas de actividad y casos siguen siendo comandos fijos generados desde módulos Python importables; no son código escrito por el modelo. `assembly_prelude.py` mantiene el preámbulo como Python editable. El manifiesto declara fuentes y bytes configurados reciben hashes antes de publicarse. No hay descargas ni imports del monolito en ejecución.
+El grant inicial sólo se permite para `new` + `install` y ausencia verificada de ambos recibos, negocio y memoria. Una ejecución posterior no repone una revocación. Un workspace con control Governance ajeno sin recibo propio bloquea antes de conceder roles o habilitar memoria.
 
-## Deploy Studio
+Los recibos se almacenan bajo `.control/ai_data_governance/installations/<digest>/` en el bucket seleccionado. Un GET404 no prueba ausencia: el listado autorizado exacto debe estar completo y no contener el objeto. Si falta acceso, hay cursor o metadata inválida, la operación se detiene. No se amplía IAM automáticamente.
 
-El repositorio canónico es `jgangini/aidp-ai-data-gobernance`; se conserva `project_id=aidp-ai-data-governance` y el nombre visible AIDP AI Data Governance. El formulario schema 1 agrupa plataforma/operación en `aidp_platform`, dominio/administrador en `identity`, bucket en `artifacts` y modelo en `enterprise_ai`. La plataforma existente se selecciona con `oci_aidp_platforms`; el OCID y el workspace explícito siguen siendo las identidades verificadas. El renderer y los listados reales son responsabilidad del consumidor CTN.
+## Operaciones
 
-`terraform/deploy-studio.json` schema 1 declara preflight y post-apply. Su ficha se presenta como «AIDP AI Data Governance» y explica los recursos del producto. `presentation.image` reutiliza `/assets/oci-aidp-cloud-migration-lab.png`, asset público ya instalado en CloudTechNext y compartido con Starter Kits; es una imagen de la plataforma, no una captura ni un diagrama del módulo. La ruta se resuelve en el origen de CTN, por lo que no depende del acceso al repositorio privado. Un consumidor distinto debe servir el mismo asset o adaptar su presentación. Usa `admin_user_ocid` e `identity_domain_id`. El dominio se elige en el selector `oci_identity_domains`: el consumidor entrega OCID como value y nombre/compartimento como label, filtra dominios ACTIVE y descubre la región home. Se conserva el patrón de OCID y la validación del dominio en el hook; no se pide pegar el identificador manualmente. El selector genérico `oci_aidp_administrators` se integra en CloudTechNext bajo coordinación. El manifiesto se validó con la clase Pydantic real del consumidor; la extracción del archivo distribuido y los entrypoints se comprueban aparte. Eso no acredita ejecución de los hooks en el runner ni una instalación nativa.
+| Operación | Comportamiento |
+| --- | --- |
+| `install` | Habilita/verifica memoria propia, instala los recursos del paquete y ejecuta sus gates nativos. |
+| `resume` | Continúa la operación original, sus identidades, candidato, fuente y fase durable. |
+| `update` | Publica el candidato compatible en los mismos recursos, con pausa, backup, refresh y verificación. |
+| `redeploy` | Usa la misma ruta de mantenimiento de artefactos y refresh sobre la instalación propia. |
+| `rollback` | Restaura los artefactos previos respaldados y refresca los agentes existentes. |
 
-Preflight lee el contexto en `DEPLOY_STUDIO_CONTEXT`, usa la configuración autorizada en `DEPLOY_STUDIO_OCI_CONFIG` y escribe `DEPLOY_STUDIO_OUTPUT`. Comprueba el paquete y el usuario activo del dominio; para existing exige rol efectivo AIDP, incluyendo grupos y roles heredados. El operador firma; seleccionar administrador no permite suplantarlo ni crear otro provisioner. Solo el install inicial new sin recibo propio de negocio ni memoria puede asignar al seleccionado al rol nativo existente tras bootstrap. Resume/update/redeploy/rollback verifican roles efectivos sin reponer una revocación; un error al leer el recibo bloquea la concesión. No se crea otro rol administrativo.
+Para reintentar conserva `deployment_id`, operación, tag/SHA, contexto y destino. Cambiar de release en una operación pendiente no es Resume. Para actualizar se necesita un contexto de actualización autorizado sobre la misma instalación y state; no aplicar un plan que sustituya plataforma o base para simular mantenimiento.
 
-Terraform crea AIDP/workspace y bucket únicamente según `new`; `existing` requiere OCID/key explícitos y conserva plataforma/workspace/bucket como externos. La salida de ownership y el administrador deben coincidir con la selección antes de aplicar hooks. El Spark compartido existente se verifica y registra como externo; en plataforma nueva se crea con el descriptor explícito. Un compute AI ajeno, fallido o invisible en historial no se adopta ni elimina automáticamente.
+Una operación de negocio terminada es idempotente y conserva su resultado histórico; no equivale a un healthcheck nuevo. Las verificaciones previas de identidad y memoria siguen aplicándose al ejecutar el hook.
 
-## Instalación, Resume, update, redeploy y rollback de artefactos
+## Estados y códigos
 
-```powershell
-.venv/Scripts/python.exe -m ai_data_governance.cli install --context <contexto-autorizado.json>
-.venv/Scripts/python.exe -m ai_data_governance.cli resume --context <mismo-contexto.json>
-.venv/Scripts/python.exe -m ai_data_governance.cli update --context <nuevo-contexto-autorizado.json>
-.venv/Scripts/python.exe -m ai_data_governance.cli redeploy --context <nuevo-contexto-autorizado.json>
-.venv/Scripts/python.exe -m ai_data_governance.cli rollback --context <contexto-rollback-autorizado.json>
-```
+| Resultado | Código CLI | Acción |
+| --- | ---: | --- |
+| Finalización técnica | 0 | Revisar estado y continuar la aceptación funcional correspondiente. |
+| Pendiente | 3 | Observar o reanudar el mismo despliegue y candidato. |
+| Fallo | 1 | Revisar la evidencia protegida y la causa antes de reintentar. |
+| `update_failed_restored` | 1 | La revisión anterior se restauró, pero el update sigue fallido. |
+| `restore_failed` | 1 | Conservar el fallo original y el error de recuperación; Resume continúa la restauración. |
+| `rollback_complete` | 0 | Artefactos previos restaurados y verificados técnicamente. |
 
-`preflight` y `apply` son entrypoints del runner. El campo de formulario schema 1 `governance_operation` selecciona install/resume/update/redeploy/rollback y llega en `context.inputs`; install es el valor predeterminado. No se agregan propiedades nuevas al contrato del manifiesto. Resume conserva deployment_id y candidato: se reintenta el despliegue original, no se crea otro deployment seleccionando Resume. La ejecución integral en el runner y en AIDP necesita aceptación coordinada. Salida 0 significa finalización técnica; 3, pendiente; 1, fallo. `update_failed_restored` sale 1 incluso cuando la recuperación anterior quedó verificada; no convierte el update fallido en éxito.
+La instalación finaliza en `TEST_PENDING`. READY/ACTIVE y los códigos de éxito no acreditan conversaciones, calidad de respuestas o persistencia real de checkpoints. No están implementados borrado, transferencia de estado ni publicación consultiva PROD.
 
-Los recibos propios están en Object Storage bajo `.control/ai_data_governance/installations/<digest>/`. Escrituras condicionales y un lock renovable excluyen doble envío; expiración y fencing impiden que un worker vencido escriba recibos o emita nuevas mutaciones. Un request ya enviado al servicio no se cancela por expirar un lock: las intenciones persistidas bloquean reenvío incierto y exigen conciliación. El recibo vincula plataforma, workspace, dominio, administrador, identidad firmante y revisión. No se adopta una instalación combinada con recibo Workspace sin recibo propio compatible.
+## Exclusión de workers y reintentos
 
-Update/redeploy utilizan una ruta propia de mantenimiento, separada de `GovernanceInstaller`: no crean recursos, conceden permisos/credenciales, ejecutan bootstrap/DDL ni inician workflows/modelos. Conservan agentes, compute y workflow existentes. Comparan el modelo, namespace y storage del bootstrap anterior y candidato; un cambio de esquema/almacenamiento/modelo configurado, una ruta nueva/eliminada o deriva de identidad se rechaza antes de mutar el entorno.
+Los recibos usan escrituras condicionales, un lease renovable y fencing. Un worker cuyo lease venció no puede escribir recibos ni iniciar nuevas mutaciones. Esto no cancela una solicitud ya enviada al servicio.
 
-Antes de la primera pausa o sobrescritura se respaldan y releen por SHA-256 todos los bytes propios: los 14 archivos del bundle y ambos `agent-manifest.json`, además de workflow/schedule, definiciones y metadata de despliegues, revisión e identidad previa. Los blobs y snapshots son inmutables bajo `artifacts/sha256/<hash>` dentro del prefijo privado de instalación. El recibo CAS publica una referencia solo después de verificar la copia completa; nunca contiene programas en base64. El máximo por objeto es 4 MiB. Un GET que entregue JSON interpretado sin bytes originales verificables bloquea antes de escribir; el transporte de mantenimiento preserva el cuerpo bruto. Las generaciones conservan referencias en `snapshot_history`; al llegar a cien se exige revisión explícita de retención, sin borrar backups automáticamente.
+Las intenciones se guardan antes de los POST. Un resultado incierto se observa; no se repite a ciegas. Los refreshes de candidato y restauración tienen journals separados. Un rechazo definitivo registrado puede admitir Resume explícito; 408/409/429 y errores desconocidos no se consideran prueba de ausencia de efectos.
 
-Se pausa el horario y se comprueba la barrera de writers antes de escribir. Los archivos se restauran o actualizan por bytes exactos, aunque JSON de formato distinto sea semánticamente igual. Cada ruta debe seguir en una de las revisiones propias conocidas; una edición ajena observada bloquea su sobrescritura. Se verifica la revisión candidata completa antes del cutover, no una mezcla de hashes previos/candidatos. La ruta native de archivos no ofrece un CAS observado: el lease excluye workers del instalador, no editores externos que ignoren ese lock; se requiere una ventana de mantenimiento exclusiva y cualquier deriva observada se rechaza.
+Para memoria, un envío sin ACK/work request verificable permanece pendiente y necesita conciliación protegida. No se interpreta READY ajeno como confirmación del envío perdido. Las reglas específicas están en [memoria de agentes](agent-memory.md).
 
-El drenaje captura claves y estados terminales en una sola observación, y se vuelve a verificar antes de escribir archivos. La intención de reactivar schedule también es durable. Si el PUT de UNPAUSED se aplicó pero se perdió su respuesta, Resume puede reconciliarlo al comprobar bytes exactos, refreshes propios y workflow objetivo; un run legítimo iniciado después de esa activación no se confunde con una violación anterior de la barrera ni se intenta revertir su resultado. La misma regla se aplica al cutover del restore.
+## Actualización de artefactos
 
-Tras subir y releer el bundle se solicita refresh documental/TEST en los mismos agentes y compute. Las intenciones se guardan antes de cada POST y usan scopes distintos para candidate y restore. Una respuesta incierta se observa, sin reenviar silenciosamente. Un rechazo HTTP 4xx definitivo y registrado puede reintentarse al Resume explícito; nunca se trata 408/409/429 como un rechazo sin efectos. Los bytes, identidades, estado ACTIVE y fecha posterior al envío forman el gate técnico de refresh. Eso no acredita respuestas, calidad ni prueba independiente del código servido por una conversación; sin metadata suficiente se mantiene Pending y el horario pausado.
+Antes de pausar o sobrescribir, se respaldan y releen por SHA-256 los catorce archivos del bundle, los dos descriptores de agente, workflow/schedule y las definiciones, despliegues e identidad previa. Los objetos de backup son inmutables y el recibo publica sus referencias por CAS después de comprobarlos.
 
-Si falla una actualización parcial o un refresh, se registra el fallo original y se restauran exclusivamente los artefactos/definición propios desde el snapshot, se refresca la revisión anterior y se recupera el schedule exacto anterior. Un schedule PAUSED permanece PAUSED. `restore_failed` conserva el código original y otro código para el fallo de recuperación; Resume continúa la misma fase y copia, verificando archivos ya restaurados sin repetir su escritura. La revisión efectiva saludable se mantiene separada del candidato fallido; no se presenta el candidato B como instalado cuando se restauró A. Una operación terminada es idempotente y su recibo representa ese resultado histórico, no un nuevo healthcheck.
+Cada objeto admite hasta 4 MiB. Se conservan generaciones sin borrado automático; cien generaciones de snapshots requieren revisión de retención antes de otro update. Los backups no sustituyen copias de datasets o infraestructura.
 
-El punto irreversible es ejecutar trabajo del candidato: el mantenimiento no inicia tasks ni inferencia, pero restaurar el schedule UNPAUSED puede permitir ejecuciones futuras. Se fija un watermark completo tras pausar y drenar los writers. Rollback explícito o restore rechazan cualquier run nuevo posterior —incluso terminal— o historia incompleta antes de cambiar archivos/horario: ya se requiere conciliación de datos autorizada. No se borran ni revierten filas/tablas ni efectos de modelos. El rollback es de artefactos y refresh de control plane, no de datos ni de toda la infraestructura.
+El mantenimiento exige identidades y recursos propios, bytes originales verificables y compatibilidad de rutas, modelo y almacenamiento. Rechaza archivos añadidos/eliminados, mezcla de revisiones inesperada, copias corruptas y cambios ajenos. La memoria debe tener asociación propia READY compatible; update/redeploy/rollback no la habilitan ni la reparan.
 
-Install sigue finalizando en `TEST_PENDING` tras sus gates nativos. Update/rollback de artefactos no equivalen a aceptación funcional nueva. En esta migración no se observaron ejecución ni schedule reales en OCI. No se implementan borrado, publicación consultiva PROD ni transferencia de estado. Operar recursos compartidos o restaurar datos requiere un alcance separado y coordinación.
+Después de pausar, se drenan writers con una observación completa de claves y estados, que se verifica otra vez antes de escribir. Se suben y releen los bytes exactos y se refrescan los mismos agentes y AI Compute. Estado ACTIVE y fecha de actualización forman el gate técnico de refresh; no prueban una conversación ni todos los bytes servidos por el runtime.
 
-## Identidad y seguridad
+Las operaciones de mantenimiento no crean recursos, cambian permisos/credenciales, ejecutan DDL, inician tasks ni invocan modelos. Reactivar un schedule UNPAUSED sí puede permitir ejecuciones futuras.
 
-El runner, el contexto y su acceso al bucket de recibos son frontera de confianza. Un ID manipulado o usuario revocado debe fallar por comprobación de dominio/activo/roles antes de cada ejecución. Tests cubren usuario inactivo, permisos insuficientes, asignación new sin suplantación y conflicto de recibos. El acceso de escritura al bucket puede alterar controles: limitarlo al operador/runtime autorizado y proteger sus políticas. Un worker autorizado malicioso no se considera aislado por el proceso de evaluación.
+## Restauración y frontera de datos
 
-`.oci`, llaves, state, outputs privados, logs de proveedor y recibos reales quedan fuera de Git y de releases. Las respuestas del CLI redactan mensajes upstream. Solo se generan bindings no secretos. El runtime conserva protección del esquema framework, rechazo de SQL arbitrario, admisión explícita de efectos, CAS e idempotencia del dominio.
+Ante update o refresh fallido se conserva la causa original y se restauran sólo los artefactos/definición propios. Se refresca la revisión anterior y se repone el schedule exacto: un horario PAUSED permanece PAUSED. La revisión saludable efectiva se conserva separada del candidato fallido.
 
-## Memoria de agentes
+La intención de reactivar el schedule es durable. Si se pierde la respuesta de una activación propia ya aplicada, Resume puede conciliarla verificando archivos, refreshes y workflow objetivo. Una ejecución legítima posterior a ese corte no se trata como actividad anterior que deba revertirse.
 
-El modelo ya pertenece al bundle Governance y su selector tiene consumidor. Los grafos usan el proxy nativo AIDP como checkpointer; el instalador crea o reutiliza Autonomous AI Lakehouse 26ai y habilita AI mediante el SDK 2.189.0, con CAS/lease y work request propio. No se copian wallets ni tablas SQL de participantes de Kits. El [contrato de memoria](agent-memory.md) registra los campos consumidos, credencial ADMIN protegida sin wallet, la evidencia indirecta de asociación y las guardas de reanudación y mantenimiento. READY por sí solo no autoriza adoptar una base ajena.
+Antes de un rollback o restore, cualquier run nuevo respecto al watermark —incluso terminado— o una historia incompleta exige conciliación de datos antes de cambiar archivos o schedule. El instalador no borra ni revierte filas, tablas, resultados de modelos o la base de memoria.
 
-La ausencia de recibos sólo se acepta con lectura/inspección autorizada: GET404 requiere listado exacto completo sin el objeto; 404 ambiguo, listado paginado o metadata inválida bloquean antes del bootstrap. La guarda aplica tanto a negocio como a memoria y al lock. No se amplía IAM automáticamente. Un control de workspace ajeno sin recibo propio también bloquea antes de nuevas habilitaciones o grants.
+La API de archivos de workspace no aporta un CAS observado. El lease coordina workers del instalador, pero no editores externos: se necesita una ventana exclusiva y cualquier deriva observada bloquea la operación.
+
+## Protección del entorno
+
+Limita el acceso de escritura al bucket de controles a las identidades autorizadas. Quien puede alterar recibos y políticas del bucket está dentro de la frontera de confianza.
+
+El CLI recibe `DEPLOY_STUDIO_CONTEXT`, credenciales en `DEPLOY_STUDIO_OCI_CONFIG`, secretos en `DEPLOY_STUDIO_SECRETS` y escribe el resultado en `DEPLOY_STUDIO_OUTPUT`. Los mensajes upstream se redactan. No se publican `.oci`, claves, state, secretos, recibos reales ni logs privados en Git o releases.
+
+Las herramientas conservan la protección del esquema framework, el rechazo de SQL arbitrario y la admisión explícita de efectos. El proceso de evaluación no aísla a un worker autorizado malicioso; la protección del runner y sus permisos sigue siendo necesaria.
