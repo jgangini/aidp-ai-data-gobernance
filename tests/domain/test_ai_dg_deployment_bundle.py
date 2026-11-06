@@ -148,3 +148,59 @@ def test_unexpected_secret_paths_and_missing_configuration_are_rejected(change):
         target[change] = "forbidden"
     with pytest.raises(ValueError, match="explicit nonsecret"):
         build_deployment_bundle(target)
+
+
+def test_exact_grok_service_id_is_preserved_in_the_complete_deterministic_bundle():
+    target = binding()
+    target["model_id"] = "xai.grok-4.7"
+    before = deepcopy(target)
+    assembled = build_deployment_bundle(target)
+    assert assembled == build_deployment_bundle(dict(reversed(list(target.items()))))
+    assert target == before and assembled["manifest"]["bindings"] == before
+    runtime_paths = [
+        DOCUMENTARY_ENTRY_PATH.rsplit("/", 1)[0] + "/documentary_runtime.py",
+        GOVERNANCE_ENTRY_PATH.rsplit("/", 1)[0] + "/governance_runtime.py",
+        *(ARTIFACT_ROOT + "/tasks/" + task + ".py" for task in ("sync_inventory", "publish_metadata", "replicate_model")),
+    ]
+    for path in runtime_paths:
+        configured = config(assembled["files"][path])
+        assert configured["model_id"] == "xai.grok-4.7"
+        assert configured["compartment_id"] == target["compartment_id"]
+    for path, source in assembled["files"].items():
+        if path.endswith(".py"):
+            compile(source, path, "exec")
+            assert binding()["model_id"].encode() not in source
+        if path != MANIFEST_PATH:
+            assert assembled["manifest"]["files"][path] == {
+                "sha256": hashlib.sha256(source).hexdigest(), "size_bytes": len(source)}
+
+
+@pytest.fixture(params=["documentary", "governance"])
+def agent_source_binding(request, bundle):
+    entries = {"documentary": (DOCUMENTARY_ENTRY_PATH, "documentary_runtime.py", documentary_agent_source),
+        "governance": (GOVERNANCE_ENTRY_PATH, "governance_runtime.py", governance_agent_source)}
+    entry, filename, generator = entries[request.param]
+    configured = config(bundle["files"][entry.rsplit("/", 1)[0] + "/" + filename])
+    configured.pop("component_revision")
+    return generator, configured
+
+
+@pytest.mark.parametrize("model", [
+    " xai.grok-4.7", "xai.grok-4.7 ", "xai. grok-4.7", "xai.grok-4.7-latest",
+    "xai.grok-4.7.extra", "https://x.ai/xai.grok-4.7", "XAI.GROK-4.7",
+    None, 42, True, ["xai.grok-4.7"], {"model_id": "xai.grok-4.7"},
+], ids=["leading-space", "trailing-space", "internal-space", "suffix", "extra-segment", "url", "case-alias",
+    "null", "number", "boolean", "list", "object"])
+def test_both_agent_generators_reject_any_unapproved_service_id_or_type(model, agent_source_binding):
+    generator, configured = agent_source_binding
+    configured["model_id"] = model
+    with pytest.raises(ValueError):
+        generator(configured)
+
+
+@pytest.mark.parametrize("compartment", [None, "not-a-compartment", "https://identity.oraclecloud.com/compartment"])
+def test_grok_service_id_never_bypasses_either_agents_compartment_guard(compartment, agent_source_binding):
+    generator, configured = agent_source_binding
+    configured.update(model_id="xai.grok-4.7", compartment_id=compartment)
+    with pytest.raises(ValueError):
+        generator(configured)

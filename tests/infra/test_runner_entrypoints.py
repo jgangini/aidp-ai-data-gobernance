@@ -43,12 +43,17 @@ def rsa_fixture():
     return pem, fingerprint
 
 
-def context_for(phase, mode='new', operation='install'):
+def context_for(phase, mode='new', operation='install', bucket_mode='new'):
     inputs = {'aidp_mode': mode, 'admin_user_ocid': ADMIN, 'identity_domain_id': DOMAIN,
-        'artifacts_mode': 'new', 'artifacts_bucket_name': 'runner-artifacts',
+        'artifacts_mode': bucket_mode,
         'model_id': 'ocid1.generativeaimodel.oc1.us-chicago-1.runnerfixture',
         'governance_operation': operation, 'autonomous_database_mode': 'new',
         'autonomous_database_version': '26ai', 'autonomous_database_workload': 'DW'}
+    bucket = 'runner-new-artifacts' if bucket_mode == 'new' else 'runner-existing-artifacts'
+    if bucket_mode == 'existing':
+        inputs['artifacts_existing_bucket_name'] = bucket
+    if bucket_mode == 'new' or phase == 'post_apply':
+        inputs['artifacts_bucket_name'] = bucket
     if mode == 'existing':
         inputs.update(existing_ai_data_platform_ocid=PLATFORM, existing_workspace_key=WORKSPACE)
     document = {'schema_version': 1, 'project_id': 'aidp-ai-data-governance',
@@ -59,15 +64,17 @@ def context_for(phase, mode='new', operation='install'):
             compartment_mode='new' if mode == 'new' else 'existing')
     else:
         document['compartment'] = {'id': COMPARTMENT, 'name': 'runner-compartment'}
-        document['terraform_outputs'] = {**inputs, 'ai_data_platform_ocid': PLATFORM,
+        terraform_inputs = {name: value for name, value in inputs.items() if name != 'artifacts_existing_bucket_name'}
+        document['terraform_outputs'] = {**terraform_inputs, 'ai_data_platform_ocid': PLATFORM,
             'workspace_key': WORKSPACE, 'workspace_name': 'runner-workspace',
             'objectstorage_namespace': 'runner_namespace', 'autonomous_database_id': DATABASE,
             'resource_ownership': {'platform': 'owned' if mode == 'new' else 'external',
-                'workspace': 'owned' if mode == 'new' else 'external', 'artifacts': 'owned', 'memory_database': 'owned'}}
+                'workspace': 'owned' if mode == 'new' else 'external',
+                'artifacts': 'owned' if bucket_mode == 'new' else 'external', 'memory_database': 'owned'}}
     return document
 
 
-def stage_runner(tmp_path, rsa_fixture, phase, *, mode='new', outcome='active', operation='install'):
+def stage_runner(tmp_path, rsa_fixture, phase, *, mode='new', outcome='active', operation='install', bucket_mode='new'):
     stage = tmp_path / 'repository'
     stage.mkdir()
     shutil.copytree(ROOT / 'src', stage / 'src', ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.oci', '.local'))
@@ -79,9 +86,10 @@ def stage_runner(tmp_path, rsa_fixture, phase, *, mode='new', outcome='active', 
     (stage / 'sitecustomize.py').write_text('from runner_transport import install\ninstall()\n', encoding='utf-8')
     case = {'phase': phase, 'outcome': outcome, 'private_marker': PRIVATE_MARKER,
         'admin_user_ocid': ADMIN, 'operator_user_ocid': OPERATOR, 'workspace_key': WORKSPACE,
-        'compartment_id': COMPARTMENT, 'database_id': DATABASE}
+        'compartment_id': COMPARTMENT, 'database_id': DATABASE,
+        'artifacts_bucket_name': 'runner-new-artifacts' if bucket_mode == 'new' else 'runner-existing-artifacts'}
     (stage / 'runner-case.json').write_text(json.dumps(case), encoding='utf-8')
-    document = context_for(phase, mode, operation)
+    document = context_for(phase, mode, operation, bucket_mode)
     context = tmp_path / 'context.json'
     context.write_text(json.dumps(document), encoding='utf-8')
     secrets = tmp_path / 'secrets.json'
@@ -128,7 +136,7 @@ def test_actual_preflight_entrypoint_returns_json_for_real_string_compartment_co
     completed = execute(runner, 'preflight')
     result = read_result(runner, completed)
     assert completed.returncode == 0, result
-    assert result['inputs'] == {'home_region': 'us-chicago-1'}
+    assert result['inputs'] == {'home_region': 'us-chicago-1', 'artifacts_bucket_name': 'runner-new-artifacts'}
     assert result['events'][0]['status'] == 'passed'
     calls = json.loads((runner.root / 'transport-calls.json').read_text())
     assert 'signed-http' in calls
@@ -240,3 +248,54 @@ def test_consumer_snapshot_matches_its_reviewed_source_hash():
         if isinstance(node, ast.FunctionDef) and node.name in names]
     assert len(pieces) == 2
     assert hashlib.sha256(('\n\n'.join(pieces) + '\n').encode()).hexdigest() == runner_transport.CTN_RESULT_SOURCE_SHA256
+
+
+@pytest.mark.parametrize('phase', ['preflight', 'post_apply'])
+@pytest.mark.parametrize('bucket_mode', ['new', 'existing'])
+def test_real_runner_canonicalizes_mode_specific_bucket_before_memory_and_lifecycle(phase, bucket_mode, tmp_path, rsa_fixture):
+    runner = stage_runner(tmp_path, rsa_fixture, phase, mode='existing', bucket_mode=bucket_mode)
+    expected = 'runner-new-artifacts' if bucket_mode == 'new' else 'runner-existing-artifacts'
+    if phase == 'preflight' and bucket_mode == 'existing':
+        assert 'artifacts_bucket_name' not in runner.document['inputs']
+    completed = execute(runner, phase)
+    result = read_result(runner, completed)
+    assert completed.returncode == 0, result
+    if phase == 'preflight':
+        assert result['inputs'] == {'home_region': 'us-chicago-1', 'artifacts_bucket_name': expected}
+    else:
+        assert result['outputs']['governance_status'] == 'active'
+        calls = json.loads((runner.root / 'transport-calls.json').read_text())
+        # These boundaries assert the actual CLI settings bucket, not a mocked result.
+        assert 'memory-boundary' in calls and 'lifecycle-boundary' in calls
+        assert runner.document['terraform_outputs']['artifacts_bucket_name'] == expected
+        assert 'artifacts_existing_bucket_name' not in runner.document['terraform_outputs']
+
+
+@pytest.mark.parametrize('phase', ['preflight', 'post_apply'])
+@pytest.mark.parametrize('invalid', ['missing-selector', 'invalid-name', 'contradiction'])
+def test_invalid_existing_bucket_form_selection_fails_before_native_or_memory_access(phase, invalid, tmp_path, rsa_fixture):
+    runner = stage_runner(tmp_path, rsa_fixture, phase, mode='existing', bucket_mode='existing')
+    selected = runner.document['inputs']
+    if invalid == 'missing-selector':
+        selected['artifacts_bucket_name'] = selected.pop('artifacts_existing_bucket_name')
+    elif invalid == 'invalid-name':
+        selected['artifacts_existing_bucket_name'] = 'bad/name'
+    else:
+        selected['artifacts_bucket_name'] = 'contradictory-bucket'
+    runner.context.write_text(json.dumps(runner.document), encoding='utf-8')
+    completed = execute(runner, phase)
+    result = read_result(runner, completed)
+    assert completed.returncode == 1
+    assert result.get('inputs' if phase == 'preflight' else 'outputs') == {}
+    assert not (runner.root / 'transport-calls.json').exists()
+
+
+@pytest.mark.parametrize('field,value', [('artifacts_mode', 'new'), ('artifacts_bucket_name', 'foreign-bucket')])
+def test_post_apply_rejects_terraform_bucket_redirection_before_native_effects(field, value, tmp_path, rsa_fixture):
+    runner = stage_runner(tmp_path, rsa_fixture, 'post_apply', mode='existing', bucket_mode='existing')
+    runner.document['terraform_outputs'][field] = value
+    runner.context.write_text(json.dumps(runner.document), encoding='utf-8')
+    completed = execute(runner, 'post_apply')
+    result = read_result(runner, completed)
+    assert completed.returncode == 1 and result['outputs'] == {}
+    assert not (runner.root / 'transport-calls.json').exists()

@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 from types import SimpleNamespace
 import uuid
 from .errors import AidpProvisionPending
@@ -15,7 +16,7 @@ OPERATIONS = frozenset({'install', 'resume', 'update', 'redeploy', 'rollback'})
 
 def _applied_bindings(context, values):
     outputs = context.get('terraform_outputs', {})
-    for key in ('aidp_mode', 'admin_user_ocid', 'identity_domain_id', 'model_id', 'artifacts_bucket_name',
+    for key in ('aidp_mode', 'admin_user_ocid', 'identity_domain_id', 'model_id', 'artifacts_bucket_name', 'artifacts_mode',
                 'autonomous_database_mode'):
         if outputs.get(key) != values[key]:
             raise ValueError('Terraform outputs changed the selected platform or administrator binding')
@@ -86,8 +87,23 @@ def _compartment_id(context, applied):
     return value
 
 
-def settings_for(context, *, applied=False):
+def _artifact_inputs(context):
     values = dict(context['inputs'])
+    mode = values['artifacts_mode']
+    if mode not in {'new', 'existing'}:
+        raise ValueError('Invalid artifacts bucket mode')
+    field = 'artifacts_bucket_name' if mode == 'new' else 'artifacts_existing_bucket_name'
+    bucket = values.get(field)
+    if not isinstance(bucket, str) or not re.fullmatch(r'[A-Za-z0-9._-]{1,128}', bucket):
+        raise ValueError('Select an exact valid artifacts bucket name')
+    if mode == 'existing' and values.get('artifacts_bucket_name', bucket) != bucket:
+        raise ValueError('The canonical artifacts bucket differs from the selected existing bucket')
+    values['artifacts_bucket_name'] = bucket
+    return values
+
+
+def settings_for(context, *, applied=False):
+    values = _artifact_inputs(context)
     if applied:
         values = _applied_bindings(context, values)
     _validate_selection(values)
@@ -184,7 +200,8 @@ def preflight(context, client_factory=None):
         home = [item.name for item in regions if item.key == region_key]
         if len(home) != 1:
             raise ValueError('The tenancy home region could not be verified')
-        return {'inputs': {'home_region': home[0]}, 'events': [{'name': 'governance_preflight', 'status': 'passed',
+        return {'inputs': {'home_region': home[0], 'artifacts_bucket_name': settings.artifacts_bucket_name},
+            'events': [{'name': 'governance_preflight', 'status': 'passed',
             'message': 'Package and selected domain identity verified; platform roles are checked after bootstrap for a new platform.'}]}
     finally:
         client.session.close()

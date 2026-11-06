@@ -12,7 +12,7 @@ def context():
         'inputs': {'aidp_mode': 'existing', 'existing_ai_data_platform_ocid': 'ocid1.aidataplatform.oc1.us-chicago-1.test',
         'existing_workspace_key': '11111111-1111-4111-8111-111111111111', 'identity_domain_id': 'ocid1.domain.oc1..test',
         'admin_user_ocid': 'ocid1.user.oc1..test', 'artifacts_bucket_name': 'artifacts',
-        'artifacts_mode': 'existing',
+        'artifacts_mode': 'existing', 'artifacts_existing_bucket_name': 'artifacts',
         'autonomous_database_mode': 'existing',
         'existing_autonomous_database_ocid': 'ocid1.autonomousdatabase.oc1.us-chicago-1.test',
         'model_id': 'ocid1.generativeaimodel.oc1.us-chicago-1.test'}}
@@ -137,7 +137,7 @@ def test_recovery_rejects_unrecognized_or_unstructured_outcome_fields(field, val
         cli._operation_result(receipt, 'workspace')
 
 
-@pytest.mark.parametrize('field', ['aidp_mode', 'identity_domain_id', 'model_id', 'artifacts_bucket_name'])
+@pytest.mark.parametrize('field', ['aidp_mode', 'identity_domain_id', 'model_id', 'artifacts_bucket_name', 'artifacts_mode'])
 def test_other_selected_bindings_cannot_be_rewritten_by_terraform(field):
     document = context()
     selected = document['inputs']
@@ -329,3 +329,67 @@ def test_runner_requires_explicit_credential_files_without_default_discovery(tmp
     monkeypatch.delenv(missing)
     with pytest.raises(ValueError, match='protected runner credential files'):
         cli._runner_client(SimpleNamespace(), None)
+
+
+@pytest.mark.parametrize('mode', ['new', 'existing'])
+def test_settings_derive_the_canonical_bucket_from_the_selected_mode_without_mutating_input(mode):
+    document = preflight_context()
+    document['inputs']['artifacts_mode'] = mode
+    if mode == 'existing':
+        del document['inputs']['artifacts_bucket_name']
+        document['inputs']['artifacts_existing_bucket_name'] = 'selected-external-bucket'
+    else:
+        document['inputs']['artifacts_bucket_name'] = 'selected-new-bucket'
+    before = json.dumps(document, sort_keys=True)
+    settings = cli.settings_for(document)
+    assert settings.artifacts_bucket_name == ('selected-external-bucket' if mode == 'existing' else 'selected-new-bucket')
+    assert json.dumps(document, sort_keys=True) == before
+
+
+@pytest.mark.parametrize('mode,bucket', [('new', 'bad/name'), ('existing', 'bad/name'),
+    ('existing', None), ('existing', ''), ('existing', 'x' * 129)], ids=['invalid-new', 'invalid-existing', 'null', 'empty', 'too-long'])
+def test_invalid_bucket_selection_stops_before_memory_or_native_access(mode, bucket, monkeypatch):
+    document = preflight_context()
+    document['inputs']['artifacts_mode'] = mode
+    field = 'artifacts_bucket_name' if mode == 'new' else 'artifacts_existing_bucket_name'
+    document['inputs'][field] = bucket
+    client, memory = Mock(), Mock()
+    monkeypatch.setattr(cli, 'preflight_memory', memory)
+    with pytest.raises(ValueError, match='valid artifacts bucket name'):
+        cli.preflight(document, client)
+    client.assert_not_called()
+    memory.assert_not_called()
+
+
+def test_existing_bucket_selector_is_required_even_when_legacy_canonical_name_is_present(monkeypatch):
+    document = preflight_context()
+    del document['inputs']['artifacts_existing_bucket_name']
+    client, memory = Mock(), Mock()
+    monkeypatch.setattr(cli, 'preflight_memory', memory)
+    with pytest.raises(ValueError):
+        cli.preflight(document, client)
+    client.assert_not_called()
+    memory.assert_not_called()
+
+
+def test_existing_bucket_canonical_name_cannot_contradict_the_selector(monkeypatch):
+    document = preflight_context()
+    document['inputs']['artifacts_bucket_name'] = 'different-bucket'
+    client, memory = Mock(), Mock()
+    monkeypatch.setattr(cli, 'preflight_memory', memory)
+    with pytest.raises(ValueError, match='differs from the selected existing bucket'):
+        cli.preflight(document, client)
+    client.assert_not_called()
+    memory.assert_not_called()
+
+
+@pytest.mark.parametrize('field,value', [('artifacts_bucket_name', 'different-bucket'), ('artifacts_mode', 'new')])
+def test_terraform_cannot_redirect_bucket_name_or_mode_before_any_native_action(field, value, monkeypatch):
+    document = bootstrap_context()
+    document['terraform_outputs'][field] = value
+    client, memory = Mock(), Mock()
+    monkeypatch.setattr(cli, 'ensure_memory', memory)
+    with pytest.raises(ValueError):
+        cli.apply(document, client_factory=client)
+    client.assert_not_called()
+    memory.assert_not_called()
