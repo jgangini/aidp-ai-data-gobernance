@@ -77,12 +77,16 @@ def test_installation_form_exposes_service_mode_and_keeps_administration_outside
     fields = {field["name"]: field for field in manifest["form"]["fields"]}
     assert "governance_operation" not in fields
     assert fields["model_id"]["label"] == "Select Model"
+    assert fields["model_id"]["default"] == "xai.grok-4.7"
     assert fields["aidp_mode"]["label"] == "Services mode"
+    assert fields["aidp_mode"]["default"] == "new"
     assert fields["aidp_mode"]["options"] == [
         {"value": "new", "label": "Create new AIDP"},
         {"value": "existing", "label": "Use existing AIDP"},
     ]
     variables = (ROOT / "terraform/b_variables.tf").read_text("utf-8")
+    aidp_mode = variables.split('variable "aidp_mode" {', 1)[1].split('variable ', 1)[0]
+    assert 'default = "new"' in aidp_mode
     operation = variables.split('variable "governance_operation" {', 1)[1].split('variable ', 1)[0]
     assert 'default = "install"' in operation
     assert '["install", "resume", "update", "redeploy", "rollback"]' in operation

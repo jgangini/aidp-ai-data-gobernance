@@ -23,7 +23,7 @@ variable "deployment_suffix" {
 }
 variable "aidp_mode" {
   type    = string
-  default = "existing"
+  default = "new"
   validation {
     condition     = contains(["new", "existing"], var.aidp_mode)
     error_message = "aidp_mode must be new or existing."

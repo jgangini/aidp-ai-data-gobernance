@@ -12,6 +12,9 @@ from . import repository, service_transport, sync_inventory, task_arguments
 from .schema import NAMESPACE, load_model
 
 
+_MODEL_ID_PATTERN = r"(?:ocid1\.generativeaimodel\.oc1\.[a-z0-9.-]+|xai\.grok-4\.7)"
+
+
 def _validate_runtime_bindings(config: dict) -> None:
     required = {"region", "platform_id", "workspace_key", "credential_name", "identity_sha256",
                 "storage_root", "job_key", "source_scopes"}

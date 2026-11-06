@@ -60,6 +60,8 @@ Mantén como fuente los módulos Python importables y los descriptores declarado
 
 Si modificas intencionalmente un archivo declarado en `package/lab.json`, actualiza sus hashes con `.venv/Scripts/python.exe scripts/refresh_package.py` y valida sintaxis, bundle y pruebas del flujo afectado. No refresques hashes para ocultar una discrepancia no investigada.
 
+Los dos ensambladores comparten el patrón de ID de modelo en `runtime_source.py`: acepta el formato OCID existente y el ID exacto `xai.grok-4.7`, contrastado con el contrato del inventario CTN. Otros alias de servicio requieren verificación explícita y una ampliación acotada de ese patrón, con tests de bundle y hashes actualizados. No se infiere compatibilidad de ejecución o calidad del modelo a partir del ensamblado.
+
 Preserva identidades, condiciones CAS, límites de efectos y controles de datos. Una evaluación portable usa los hooks/checkpointer de `factories.py`; no reemplaza el adaptador nativo ni demuestra persistencia Oracle.
 
 ## Alcance de las comprobaciones

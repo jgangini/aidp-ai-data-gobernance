@@ -28,7 +28,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 
 | Campo | Uso y condición |
 | --- | --- |
-| `aidp_mode` | `Services mode`: `Create new AIDP` (`new`) o `Use existing AIDP` (`existing`); valor inicial `existing`. |
+| `aidp_mode` | `Services mode`: `Create new AIDP` (`new`) o `Use existing AIDP` (`existing`); valor inicial `new`. |
 | `existing_ai_data_platform_ocid` | Selector de plataformas AIDP; obligatorio y visible en existing. |
 | `existing_workspace_key` | `Existing workspace`: selector `oci_aidp_workspaces` de workspaces reales de `existing_ai_data_platform_ocid`; conserva su UUID canónico. Obligatorio y visible en existing. |
 | `identity_domain_id` | Dominio seleccionado desde `oci_identity_domains`; se guarda su OCID. |
@@ -36,7 +36,7 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `artifacts_mode` | `Artifacts bucket mode`: `Create new bucket` (`new`) o `Use existing bucket` (`existing`); valor inicial `existing`. |
 | `artifacts_bucket_name` | `New artifacts bucket name`: nombre explícito, obligatorio y visible en new. Preflight también devuelve en este binding el nombre canónico cuando se selecciona un bucket existente. |
 | `artifacts_existing_bucket_name` | `Existing artifacts bucket`: selector `oci_active_buckets` por nombre exacto; obligatorio y visible en existing. |
-| `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`. |
+| `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`; valor inicial `xai.grok-4.7` (Grok 4.7). Debe seguir disponible en la región seleccionada. |
 | `autonomous_database_mode` | `Database mode`: `Create new database` (`new`) o `Use existing database` (`existing`); valor inicial `new`. |
 | `autonomous_database_version` | `Database profile`, sólo en new: perfil `26ai:DW`; el runner produce versión `26ai` y workload `DW`. |
 | `existing_autonomous_database_ocid` | `Existing Autonomous Database`: selector `oci_autonomous_databases`, visible y obligatorio en existing; conserva el OCID exacto de la Lakehouse compatible. |
@@ -45,6 +45,8 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 La UI agrupa plataforma en `aidp_platform`, dominio/administrador en `identity`, bucket en `artifacts`, modelo en `enterprise_ai` y Autonomous en `database`. El renderer común de CTN controla presentación y orden. El formulario instala con la operación predeterminada `install`; no ofrece un selector de mantenimiento. Los comandos administrativos y de recuperación permanecen disponibles según el [contrato de operación](contracts.md#operaciones).
 
 Las etiquetas, opciones y etapas del formulario están en inglés. La documentación mantiene el español. Seleccionar un bucket o una base existentes no transfiere su propiedad ni acredita los permisos; los hooks conservan sus verificaciones.
+
+El modelo usa el ID exacto devuelto por el inventario. La versión mostrada en el label no se concatena al ID: Grok 4.7 usa `xai.grok-4.7`. Los ensambladores admiten ese ID de servicio verificado y los OCID de modelo ya soportados; conservan las validaciones de compartimento y destino. El valor inicial no cambia por sí mismo el modelo de una instalación existente.
 
 ### Cuándo proporcionar ADMIN
 

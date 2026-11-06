@@ -12,7 +12,7 @@ from . import contracts, documentary_graph, documentary_hooks, documentation
 from . import inventory, journal, model_output, native_documentary, service_transport
 from . import workflow_receipts
 from .prompts import documentary_prompts
-from .runtime_source import _validate_runtime_bindings
+from .runtime_source import _MODEL_ID_PATTERN, _validate_runtime_bindings
 
 
 def documentary_entry_source() -> bytes:
@@ -25,7 +25,7 @@ def documentary_agent_source(binding: dict) -> bytes:
         "job_key", "source_scopes", "model_id", "compartment_id"}:
         raise ValueError("Only explicit documentary installation bindings are accepted")
     _validate_runtime_bindings({k: v for k, v in binding.items() if k not in {"model_id", "compartment_id"}})
-    for key, pattern in (("model_id", r"ocid1\.generativeaimodel\.oc1\.[a-z0-9.-]+"),
+    for key, pattern in (("model_id", _MODEL_ID_PATTERN),
                          ("compartment_id", r"ocid1\.compartment\.oc1\.\.[a-z0-9]+")):
         if not isinstance(binding[key], str) or not re.fullmatch(pattern, binding[key]):
             raise ValueError("An existing model and compartment binding are required")

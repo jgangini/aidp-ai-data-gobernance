@@ -19,7 +19,7 @@ from . import case_program, case_transport, native_cases, repository, case_previ
 from .activity_source import activity_program_source
 from .case_source import case_program_source
 from .prompts import governance_prompts
-from .runtime_source import _validate_source_scopes
+from .runtime_source import _MODEL_ID_PATTERN, _validate_source_scopes
 from .schema import NAMESPACE, load_model
 
 
@@ -45,7 +45,7 @@ def _validate_governance_binding(binding):
     for key in ("workspace_key", "agent_key", "query_compute_key"):
         if not isinstance(binding[key], str) or str(UUID(binding[key])) != binding[key]:
             raise ValueError("Canonical native consultation keys are required")
-    for key, pattern in (("model_id", r"ocid1\.generativeaimodel\.oc1\.[a-z0-9.-]+"),
+    for key, pattern in (("model_id", _MODEL_ID_PATTERN),
             ("compartment_id", r"ocid1\.compartment\.oc1\.\.[a-z0-9]+")):
         if not isinstance(binding[key], str) or not re.fullmatch(pattern, binding[key]):
             raise ValueError("An existing consultation model and compartment are required")
