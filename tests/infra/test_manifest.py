@@ -120,6 +120,7 @@ def test_artifacts_bucket_fields_are_mode_specific_and_map_to_one_canonical_inpu
 
 def test_form_labels_options_and_stages_match_the_requested_english_contract():
     manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    assert manifest["execution_source"] == "oci_resource_manager"
     fields = {field["name"]: field for field in manifest["form"]["fields"]}
     assert {name: field["label"] for name, field in fields.items()} == {
         "aidp_mode": "Services mode", "new_aidp_name": "New AIDP name", "existing_ai_data_platform_ocid": "Existing AIDP",
@@ -137,7 +138,8 @@ def test_form_labels_options_and_stages_match_the_requested_english_contract():
     assert [(step["key"], step["label"]) for step in manifest["run_steps"]] == [
         ("queue", "Queued"), ("credentials", "Validate identity and access"),
         ("plan", "Review resources"), ("apply", "Prepare platform and artifacts"),
-        ("artifacts", "Install and verify resources"), ("complete", "TEST candidate installed")]
+        ("application", "Install and verify resources"), ("artifacts", "Deployment outputs"),
+        ("complete", "TEST candidate installed")]
     assert manifest["preflight"]["runtime_fields"][0]["label"] == "Tenancy home region"
 
 
