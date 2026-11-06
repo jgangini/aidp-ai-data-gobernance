@@ -7,7 +7,7 @@ locals {
 resource "oci_ai_data_platform_ai_data_platform" "governance" {
   count                  = var.aidp_mode == "new" ? 1 : 0
   compartment_id         = var.compartment_ocid
-  display_name           = local.product_name
+  display_name           = var.new_aidp_name
   default_workspace_name = local.workspace_name
   ai_data_platform_type  = "STRUCTURED"
   freeform_tags = {

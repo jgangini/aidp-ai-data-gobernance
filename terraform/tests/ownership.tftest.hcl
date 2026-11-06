@@ -31,6 +31,7 @@ run "existing_resources_are_external" {
     artifacts_mode                 = "existing"
     existing_ai_data_platform_ocid = "ocid1.aidataplatform.oc1.test.existing"
     existing_workspace_key         = "11111111-1111-4111-8111-111111111111"
+    new_aidp_name                  = "An unrelated platform name"
   }
   assert {
     condition     = length(oci_ai_data_platform_ai_data_platform.governance) == 0 && length(oci_objectstorage_bucket.artifacts) == 0 && length(oci_identity_policy.aidp_service) == 0
@@ -59,6 +60,10 @@ run "new_platform_and_bucket_are_explicit" {
   assert {
     condition     = oci_ai_data_platform_ai_data_platform.governance[0].default_workspace_name == "governance-test1234" && output.workspace_key == ""
     error_message = "The newly created default workspace must be resolved by exact platform identity after apply."
+  }
+  assert {
+    condition     = oci_ai_data_platform_ai_data_platform.governance[0].display_name == "aidp_governance"
+    error_message = "Omitting the new AIDP name must preserve the requested default on the created resource."
   }
   assert {
     condition     = output.resource_ownership.platform == "owned" && output.resource_ownership.workspace == "owned" && output.resource_ownership.artifacts == "owned"
@@ -134,4 +139,60 @@ run "new_platform_existing_bucket" {
     condition     = output.resource_ownership.platform == "owned" && output.resource_ownership.artifacts == "external"
     error_message = "The installation receipt needs independently selected ownership for platform and bucket."
   }
+}
+
+run "custom_name_reaches_only_the_new_platform_display_name" {
+  command = plan
+  variables {
+    aidp_mode     = "new"
+    new_aidp_name = "Finance AIDP - QA 01"
+  }
+  assert {
+    condition     = oci_ai_data_platform_ai_data_platform.governance[0].display_name == "Finance AIDP - QA 01"
+    error_message = "The selected AIDP display name must reach the created platform without rewriting."
+  }
+  assert {
+    condition     = oci_ai_data_platform_ai_data_platform.governance[0].default_workspace_name == "governance-test1234" && oci_identity_policy.aidp_service[0].name == "aidp-governance-test1234-aidp-service" && oci_database_autonomous_database.memory[0].display_name == "aidp-governance-test1234-memory"
+    error_message = "The platform display name must not rename the workspace, IAM policy or memory database."
+  }
+}
+
+run "empty_new_platform_name_is_rejected" {
+  command = plan
+  variables {
+    new_aidp_name = ""
+  }
+  expect_failures = [var.new_aidp_name]
+}
+
+run "blank_new_platform_name_is_rejected" {
+  command = plan
+  variables {
+    new_aidp_name = "   "
+  }
+  expect_failures = [var.new_aidp_name]
+}
+
+run "control_character_in_new_platform_name_is_rejected" {
+  command = plan
+  variables {
+    new_aidp_name = "governance\nunsafe"
+  }
+  expect_failures = [var.new_aidp_name]
+}
+
+run "path_in_new_platform_name_is_rejected" {
+  command = plan
+  variables {
+    new_aidp_name = "governance/private"
+  }
+  expect_failures = [var.new_aidp_name]
+}
+
+run "overlong_new_platform_name_is_rejected" {
+  command = plan
+  variables {
+    new_aidp_name = join("", [for index in range(256) : "x"])
+  }
+  expect_failures = [var.new_aidp_name]
 }

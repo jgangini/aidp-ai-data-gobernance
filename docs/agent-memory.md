@@ -16,6 +16,8 @@ Una base nueva usa 26ai/DW, cuatro ECPU, 1 TB, licencia incluida, mTLS y autosca
 
 ADMIN se transmite por `DEPLOY_STUDIO_SECRETS.inputs` sólo al control plane; no llega a los agentes, recibos u outputs. No se solicita wallet. El campo es opcional en el formulario, pero `aidp_mode=new` lo exige en preflight y una base propia en modo `new` lo requiere en Terraform. Puede omitirse en la ruta compatible de plataforma y base existentes con memoria propia READY, cuando no hace falta habilitar AI.
 
+La selección de una base existente no cambia ese contrato: `enable_ai_feature` recibe el OCID y la contraseña ADMIN, no un ZIP o contraseña de wallet. El modelo de solicitud del SDK admite `vector_db_id`, `vector_db_admin_cred` y una referencia opcional de secreto Vault; el instalador usa los dos primeros. [Contrato de solicitud](https://docs.oracle.com/en-us/iaas/tools/python/latest/api/ai_data_platform/models/oci.ai_data_platform.models.EnableAiFeatureDetails.html). Oracle también describe la selección de una base existente y su contraseña ADMIN en [AI Feature Management](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/ai-feature-enablement.html). No se recopilan archivos o secretos sin consumidor. Una conexión SQL adicional sería otro flujo; este producto usa el proxy de memoria administrado y no implementa esa conexión.
+
 Terraform puede conservar la contraseña de la base propia en state. `sensitive` evita mostrarla, no la cifra: el state requiere protección. No se publican state, credenciales ni recibos reales.
 
 ## Asociación inicial

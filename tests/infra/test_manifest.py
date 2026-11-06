@@ -113,7 +113,7 @@ def test_form_labels_options_and_stages_match_the_requested_english_contract():
     manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
     fields = {field["name"]: field for field in manifest["form"]["fields"]}
     assert {name: field["label"] for name, field in fields.items()} == {
-        "aidp_mode": "Services mode", "existing_ai_data_platform_ocid": "Existing AIDP",
+        "aidp_mode": "Services mode", "new_aidp_name": "New AIDP name", "existing_ai_data_platform_ocid": "Existing AIDP",
         "existing_workspace_key": "Existing workspace", "identity_domain_id": "Identity Domain",
         "admin_user_ocid": "AIDP administrator", "artifacts_mode": "Artifacts bucket mode",
         "artifacts_bucket_name": "New artifacts bucket name", "artifacts_existing_bucket_name": "Existing artifacts bucket",
@@ -130,3 +130,23 @@ def test_form_labels_options_and_stages_match_the_requested_english_contract():
         ("plan", "Review resources"), ("apply", "Prepare platform and artifacts"),
         ("artifacts", "Install and verify resources"), ("complete", "TEST candidate installed")]
     assert manifest["preflight"]["runtime_fields"][0]["label"] == "Tenancy home region"
+
+
+def test_new_aidp_name_is_adjacent_to_mode_and_has_the_same_terraform_default_and_bounds():
+    manifest = json.loads((ROOT / "terraform/deploy-studio.json").read_text("utf-8"))
+    ordered = manifest["form"]["fields"]
+    fields = {field["name"]: field for field in ordered}
+    mode, name = fields["aidp_mode"], fields["new_aidp_name"]
+    assert len(ordered) == 14
+    assert ordered.index(name) == ordered.index(mode) + 1
+    assert mode["span"] == name["span"] == 1
+    assert mode["group"] == name["group"] == "aidp_platform"
+    assert name["type"] == "text" and name["required"] is True
+    assert name["default"] == "aidp_governance"
+    assert name["visible_when"] == {"field": "aidp_mode", "equals": "new"}
+    assert (name["min_length"], name["max_length"]) == (1, 255)
+    assert name["pattern"] == "^[A-Za-z0-9][A-Za-z0-9._ -]{0,254}$"
+    variables = (ROOT / "terraform/b_variables.tf").read_text("utf-8")
+    definition = variables.split('variable "new_aidp_name" {', 1)[1].split('variable ', 1)[0]
+    assert re.search(r'\bdefault\s*=\s*"aidp_governance"', definition)
+    assert name["pattern"] in definition

@@ -190,6 +190,7 @@ def validate_configuration(binary, directory, environment):
 def cases():
     return [
         ('new-platform-bucket-memory', {}, NEW_CREATES),
+        ('custom-new-platform-name', {'new_aidp_name': 'Finance AIDP - QA 01'}, NEW_CREATES),
         ('existing-platform-new-memory', {'aidp_mode': 'existing'}, EXISTING_CREATES),
         ('missing-platform', {'aidp_mode': 'existing', 'existing_ai_data_platform_ocid': ''}, 'An explicit AIDP OCID'),
         ('invalid-platform', {'aidp_mode': 'existing', 'existing_ai_data_platform_ocid': 'platform-name'}, 'An explicit AIDP OCID'),
@@ -203,15 +204,43 @@ def cases():
         ('password-no-number', {'autonomous_database_admin_password': 'TestOnlyPassword!'}, 'ADMIN password'),
         ('unsupported-version', {'autonomous_database_version': '23ai'}, 'Governance memory requires Oracle AI Database 26ai'),
         ('unsupported-workload', {'autonomous_database_workload': 'OLTP'}, 'Governance memory requires the DW workload'),
+        ('empty-new-platform-name', {'new_aidp_name': ''}, 'new_aidp_name must be 1-255'),
+        ('blank-new-platform-name', {'new_aidp_name': '   '}, 'new_aidp_name must be 1-255'),
+        ('control-in-new-platform-name', {'new_aidp_name': 'governance\nunsafe'}, 'new_aidp_name must be 1-255'),
+        ('path-in-new-platform-name', {'new_aidp_name': 'governance/private'}, 'new_aidp_name must be 1-255'),
+        ('overlong-new-platform-name', {'new_aidp_name': 'x' * 256}, 'new_aidp_name must be 1-255'),
     ]
+
+
+def verify_planned_platform_name(binary, directory, environment, proxy, plan_file, overrides, expectation):
+    shown = command(binary, directory, environment, ['show', '-json', str(plan_file)])
+    require_success(shown, 'Offline saved-plan inspection')
+    if proxy.attempts:
+        raise RuntimeError('Saved-plan inspection attempted network access')
+    # show-json includes the synthetic ADMIN credential. Inspect in memory only;
+    # neither its body nor selected resource values are written to console logs.
+    planned = json.loads(shown.stdout)
+    resources = planned['planned_values']['root_module'].get('resources', [])
+    platform_address = 'oci_ai_data_platform_ai_data_platform.governance[0]'
+    platforms = [resource for resource in resources if resource['address'] == platform_address]
+    if platform_address not in expectation:
+        if platforms:
+            raise RuntimeError('Existing mode unexpectedly planned a platform resource')
+        return
+    expected_name = overrides.get('new_aidp_name', 'aidp_governance')
+    if len(platforms) != 1 or platforms[0]['values'].get('display_name') != expected_name:
+        raise RuntimeError('The selected platform display name did not reach the saved Terraform plan')
 
 
 def check_plan(binary, directory, environment, proxy, case):
     name, overrides, expectation = case
     inputs = directory / 'fixture-inputs.json'
     inputs.write_text(json.dumps({**BASE, **overrides}), encoding='utf-8')
-    completed = command(binary, directory, environment,
-        ['plan', '-refresh=false', '-lock=false', '-input=false', '-detailed-exitcode', '-json', '-var-file=' + str(inputs)])
+    plan_file = directory / 'fixture-plan.tfplan'
+    arguments = ['plan', '-refresh=false', '-lock=false', '-input=false', '-detailed-exitcode', '-json', '-var-file=' + str(inputs)]
+    if not isinstance(expectation, str):
+        arguments.append('-out=' + str(plan_file))
+    completed = command(binary, directory, environment, arguments)
     if proxy.attempts:
         raise RuntimeError(name + ': the provider attempted network access; offline proof failed')
     messages = events(completed)
@@ -224,6 +253,7 @@ def check_plan(binary, directory, environment, proxy, case):
         creates = {change['resource']['addr'] for change in changes if change['action'] == 'create'}
         if completed.returncode != 2 or creates != expectation or any(change['action'] != 'create' for change in changes):
             raise RuntimeError(name + ': the offline create-only plan differs from the expected resource scope')
+        verify_planned_platform_name(binary, directory, environment, proxy, plan_file, overrides, expectation)
     print(json.dumps({'case': name, 'status': 'passed', 'network_requests': 0}), flush=True)
 
 
