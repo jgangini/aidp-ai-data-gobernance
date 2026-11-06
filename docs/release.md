@@ -1,6 +1,6 @@
 # Release privada y handoff a Deploy Studio
 
-Producto `aidp-ai-data-governance`. Release de prueba vigente [`v0.2.0-rc.2`](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.2): implementación 0.2.0 con recuperación de artefactos; aceptación OCI todavía pendiente. La visibilidad se conserva privada y el tag se congela en el SHA probado por CI. Deploy Studio obtiene el código de ese tag resuelto a SHA; el módulo no descarga assets con PAT ni tiene VM de portal.
+Producto `aidp-ai-data-governance`. Release de prueba vigente [`v0.2.0-rc.3`](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.3): implementación 0.2.0 con recuperación de artefactos; aceptación OCI todavía pendiente. La visibilidad se conserva privada y el tag se congela en el SHA probado por CI. Deploy Studio obtiene el código de ese tag resuelto a SHA; el módulo no descarga assets con PAT ni tiene VM de portal.
 
 ## Conjunto exacto de assets
 
@@ -21,7 +21,7 @@ La coordinación es el único dueño del Browser, colas y mutaciones OCI. Selecc
 | `aidp_mode` | `new` |
 | `existing_ai_data_platform_ocid` | vacío/no visible |
 | `existing_workspace_key` | vacío/no visible |
-| `identity_domain_id` | OCID exacto del dominio seleccionado |
+| `identity_domain_id` | seleccionar dominio ACTIVE de la lista; valor guardado: OCID del dominio |
 | `admin_user_ocid` | OCID estable del candidato activo listado por Deploy Studio; el hook asigna/verifica el rol tras bootstrap |
 | `artifacts_mode` | `new` o `existing` según la selección explícita y validada |
 | `artifacts_bucket_name` | nombre único acordado del bucket de artefactos; no un bucket de datos medallion |
@@ -77,3 +77,16 @@ El runtime Python, Terraform y los hooks de RC1 no cambian. El wheel 0.2.0 se co
 ## RC3: selector Identity Domain
 
 `v0.2.0-rc.3` cambia únicamente el campo `identity_domain_id` de texto a select con `options_source: oci_identity_domains`, obligatorio y con el patrón de OCID previo. La coordinación implementa el consumidor CTN (dominios ACTIVE, región home, labels nombre/compartimento); Governance conserva las verificaciones de identidad nativas. Se mantienen la ficha AIDP AI Data Governance, su PNG, hooks, Terraform y wheel 0.2.0. RC1 y RC2 permanecen inmutables. No se consultó OCI ni se operaron Browser/Docker compartidos.
+
+### Publicación y verificación RC3
+
+[Release privada e inmutable v0.2.0-rc.3](https://github.com/jgangini/aidp-ai_data_governance/releases/tag/v0.2.0-rc.3), tag remoto resuelto a `d46a66d9972c63bceb70ce5b72e258657cdcbfc3`. GitHub confirmó `isImmutable=true`, `isDraft=false`, `isPrerelease=true`; los cuatro assets descargados coinciden con sus hashes. No se modificaron RC1/RC2.
+
+[CI 42151723191](https://github.com/jgangini/aidp-ai_data_governance/actions/runs/42151723191) aprobó 1.836 tests Python en 274.77 s, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 218.38 s y compilación aprobados; mismo fallo Sentrux heredado (calidad 0.7016, tres complejas, cero ciclos/god files; baseline conservado y sin reglas custom). Parser real CTN actualizado aprobado sobre el ZIP publicado: 129 archivos / 889.225 bytes; `select`, source, required y patrón correctos, nombre/PNG conservados. Enumeración real de dominios y aceptación UI/OCI bajo coordinación; no se operaron recursos compartidos desde este chat.
+
+| Asset RC3 | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `aidp-ai-data-governance-source.zip` | 598046 | `0a172c4133d15e4d5b67728df65b5e88d20023ecc671ac1763caab2a9fe9d309` |
+| `aidp_ai_data_governance-0.2.0-py3-none-any.whl` | 277589 | `c9597470a59b9c8beaeb35a4b3a49575e15bfa8a176568e046532b33a4b98121` |
+| `aidp-governance-release.json` | 793 | `957e11a55182eaaa27755451cbc84ad02b7e038a1697b28fcc4d7500622cb8e5` |
+| `SHA256SUMS` | 309 | `f002504166c46127f0266204e8f1bc1013896bcada9912c8b938d8d53f14f7cd` |
