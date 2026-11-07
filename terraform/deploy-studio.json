@@ -149,7 +149,7 @@
         "label": "Artifacts bucket mode",
         "type": "select",
         "required": true,
-        "default": "existing",
+        "default": "new",
         "options": [
           {
             "value": "new",
@@ -174,7 +174,8 @@
         "visible_when": {
           "field": "artifacts_mode",
           "equals": "new"
-        }
+        },
+        "default": "oci_artifacts"
       },
       {
         "name": "artifacts_existing_bucket_name",

@@ -133,6 +133,9 @@ def test_form_labels_options_and_stages_match_the_requested_english_contract():
     }
     assert fields["artifacts_mode"]["options"] == [
         {"value": "new", "label": "Create new bucket"}, {"value": "existing", "label": "Use existing bucket"}]
+    assert fields["artifacts_mode"]["default"] == "new"
+    assert fields["artifacts_bucket_name"]["default"] == "oci_artifacts"
+    assert "default" not in fields["admin_user_ocid"] and "default_selection" not in fields["admin_user_ocid"]
     assert fields["autonomous_database_mode"]["options"] == [
         {"value": "new", "label": "Create new database"}, {"value": "existing", "label": "Use existing database"}]
     assert [(step["key"], step["label"]) for step in manifest["run_steps"]] == [

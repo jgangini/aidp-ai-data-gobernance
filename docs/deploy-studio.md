@@ -33,9 +33,9 @@ La memoria admite habilitación propia sobre una plataforma DISABLED. READY/ENAB
 | `existing_ai_data_platform_ocid` | Selector de plataformas AIDP; obligatorio y visible en existing. |
 | `existing_workspace_key` | `Existing workspace`: selector `oci_aidp_workspaces` de workspaces reales de `existing_ai_data_platform_ocid`; conserva su UUID canónico. Obligatorio y visible en existing. |
 | `identity_domain_id` | Dominio seleccionado desde `oci_identity_domains`; se guarda su OCID. |
-| `admin_user_ocid` | `AIDP administrator`: administrador activo del dominio, listado por `oci_aidp_administrators`; se guarda su OCID estable. |
-| `artifacts_mode` | `Artifacts bucket mode`: `Create new bucket` (`new`) o `Use existing bucket` (`existing`); valor inicial `existing`. |
-| `artifacts_bucket_name` | `New artifacts bucket name`: nombre explícito, obligatorio y visible en new. Preflight también devuelve en este binding el nombre canónico cuando se selecciona un bucket existente. |
+| `admin_user_ocid` | `AIDP administrator`: muestra Select hasta elegir un administrador activo del dominio, listado por `oci_aidp_administrators`; se guarda su OCID estable y el instalador verifica sus permisos. |
+| `artifacts_mode` | `Artifacts bucket mode`: `Create new bucket` (`new`) o `Use existing bucket` (`existing`); valor inicial `new`. |
+| `artifacts_bucket_name` | `New artifacts bucket name`: valor inicial `oci_artifacts`, obligatorio y visible en new. Preflight también devuelve en este binding el nombre canónico cuando se selecciona un bucket existente. |
 | `artifacts_existing_bucket_name` | `Existing artifacts bucket`: selector `oci_active_buckets` por nombre exacto; obligatorio y visible en existing. |
 | `model_id` | `Select Model`: modelo de los agentes desde `oci_genai_chat_models`; selección inicial por el nombre `xai.grok-4.7` (Grok 4.7). CTN lo resuelve al ID regional real, que debe seguir disponible en la región seleccionada. |
 | `autonomous_database_mode` | `Database mode`: `Create new database` (`new`) o `Use existing database` (`existing`); valor inicial `new`. |
