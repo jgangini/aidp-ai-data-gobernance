@@ -26,6 +26,17 @@ variables {
 
 run "existing_resources_are_external" {
   command = plan
+  assert {
+    condition = (
+      !issensitive(output.deploy_studio_resource_labels) &&
+      toset(keys(output.deploy_studio_resource_labels)) == toset([
+        "oci_database_autonomous_database.memory[0]",
+      ]) &&
+      alltrue([for label in values(output.deploy_studio_resource_labels) : length(label) > 0 && length(label) <= 80])
+    )
+    error_message = "Display labels must be available during PLAN, nonsensitive, and cover exactly the selected resource and data instances."
+  }
+
   variables {
     aidp_mode                      = "existing"
     artifacts_mode                 = "existing"
@@ -49,6 +60,26 @@ run "existing_resources_are_external" {
 
 run "new_platform_and_bucket_are_explicit" {
   command = plan
+  assert {
+    condition     = output.deploy_studio_resource_labels["oci_ai_data_platform_ai_data_platform.governance[0]"] == "AI Data Platform" && output.deploy_studio_resource_labels["oci_database_autonomous_database.memory[0]"] == "Agent memory database"
+    error_message = "Plan resource labels must identify the selected infrastructure without exposing instance suffixes."
+  }
+
+  assert {
+    condition = (
+      !issensitive(output.deploy_studio_resource_labels) &&
+      toset(keys(output.deploy_studio_resource_labels)) == toset([
+        "oci_ai_data_platform_ai_data_platform.governance[0]",
+        "oci_identity_policy.aidp_service[0]",
+        "time_sleep.aidp_iam_propagation[0]",
+        "oci_objectstorage_bucket.artifacts[0]",
+        "oci_database_autonomous_database.memory[0]",
+      ]) &&
+      alltrue([for label in values(output.deploy_studio_resource_labels) : length(label) > 0 && length(label) <= 80])
+    )
+    error_message = "Display labels must be available during PLAN, nonsensitive, and cover exactly the selected resource and data instances."
+  }
+
   variables {
     aidp_mode      = "new"
     artifacts_mode = "new"

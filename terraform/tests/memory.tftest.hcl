@@ -55,6 +55,17 @@ run "new_memory_is_a_dw_26ai_ecpu_database" {
 
 run "existing_memory_is_verified_without_adoption_or_mutation" {
   command = plan
+  assert {
+    condition = (
+      !issensitive(output.deploy_studio_resource_labels) &&
+      toset(keys(output.deploy_studio_resource_labels)) == toset([
+        "data.oci_database_autonomous_database.existing_memory[0]",
+      ]) &&
+      alltrue([for label in values(output.deploy_studio_resource_labels) : length(label) > 0 && length(label) <= 80])
+    )
+    error_message = "Display labels must be available during PLAN, nonsensitive, and cover exactly the selected resource and data instances."
+  }
+
   variables {
     autonomous_database_mode          = "existing"
     existing_autonomous_database_ocid = "ocid1.autonomousdatabase.oc1.test.external"
