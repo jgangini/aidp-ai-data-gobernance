@@ -1,0 +1,36 @@
+{
+  "name": "aidp_cluster_shared_compute",
+  "type": "SPARK",
+  "ownership": "shared",
+  "binding": "cluster_key",
+  "payload": {
+    "type": "USER",
+    "displayName": "aidp_cluster_shared_compute",
+    "description": "Shared Spark compute for Governance workflows",
+    "driverConfig": {
+      "driverShape": "amd.generic",
+      "driverShapeConfig": {
+        "ocpus": 2,
+        "memoryInGBs": 32
+      }
+    },
+    "workerConfig": {
+      "workerShape": "amd.generic",
+      "workerShapeConfig": {
+        "ocpus": 2,
+        "memoryInGBs": 32
+      },
+      "minWorkerCount": 1,
+      "maxWorkerCount": 10
+    },
+    "clusterRuntimeConfig": {
+      "type": "SPARK",
+      "sparkVersion": "3.5.0",
+      "sparkAdvancedConfigurations": {
+        "spark.aidp.lineage.enabled": "true"
+      },
+      "sparkEnvVariables": {},
+      "initScripts": []
+    }
+  }
+}

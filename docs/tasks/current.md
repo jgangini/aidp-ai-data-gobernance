@@ -1,0 +1,137 @@
+# Separación Governance: recuperación de artefactos
+
+Fecha de trabajo: 2026-11-05 (America/Lima). Fuente congelada: `3c82617fd298933995e954955841007253cc0985`. Repositorio público: https://github.com/jgangini/aidp-ai-data-gobernance, rama main.
+
+El código anterior `868387f` y su cierre documental `174e7af` están subidos. [CI anterior 42141257951](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42141257951) aprobó 1.740 tests y cinco Terraform; esa evidencia no sustituye esta continuación. El contrato de recuperación está implementado y la suite local completa aprobó 1.836 tests. Commit `168273bbb8c4f143602aecea71a1d8552a995acf` subido; [CI 42146959451](https://github.com/jgangini/aidp-ai-data-gobernance/actions/runs/42146959451) aprobó 1.836 tests Python en 246.80 s, compilación y cinco tests Terraform. La [prerelease privada e inmutable v0.2.0-rc.1](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.1) está publicada para su prueba real desde Deploy Studio; los cuatro assets descargados coinciden con sus hashes. Publicación autorizada por coordinación. Solo coordinación creará un AIDP y agregará los demás módulos sobre ese mismo; este chat no opera OCI.
+
+## Contrato implementado
+
+- Paquete Python/CLI/hooks y fuentes AIDP: dos agentes, dieciocho tablas y workflow de cuatro tareas. Sin portal, frontend, servidor HTTP, login local ni VM administrativa.
+- Install conserva los gates nativos originales. Update/redeploy/rollback utilizan mantenimiento separado: no crean recursos, cambian permisos/credenciales, ejecutan DDL ni hacen POST jobRuns/inferencia.
+- Antes de la primera mutación nativa se respaldan por bytes exactos los catorce assets y los dos descriptores de agente, con workflow/schedule, definiciones/despliegues e identidad/revisión previa. Blobs y snapshots por SHA-256, readback completo y referencia publicada por CAS. No se codifican programas en receipt.json.
+- Historial versionado de referencias; nunca se borran copias automáticamente. Límite de cien generaciones antes de exigir revisión explícita de retención.
+- Artefactos y agentes deben corresponder a las identidades registradas; no se adoptan recursos. Se rechazan nuevas/eliminadas rutas, cambios MODEL/NAMESPACE/STORAGE y cambios de modelo configurado antes de la primera pausa/escritura.
+- Los writers se drenan tomando claves y estados de una sola observación; se comprueba de nuevo antes de escribir. Un writer nuevo no se incorpora silenciosamente a una barrera ya declarada.
+- Refresh candidato y restore usan journals/scopes distintos. Resultado incierto se observa, sin reenviar a ciegas. Rechazo HTTP definitivo registrado admite Resume explícito.
+- Fracaso parcial de update o refresh: restaura solamente bytes/definición previos y refresca esos agentes existentes; conserva datos, claves y el schedule previo exacto, incluido PAUSED.
+- Restore fallido conserva el error original y un código adicional de restore; Resume continúa la misma copia y fase. La versión saludable efectiva se separa del candidato fallido.
+- `update_failed_restored` sigue siendo fallo y sale 1; `restore_failed` sale 1; pendiente sale 3. `rollback_complete` sale 0 únicamente tras restauración y readbacks técnicos completos. No se convierte el update fallido en un éxito.
+- Cutover propio con respuesta perdida: se reconcilia con intención durable, archivos exactos, refresh verificado y workflow objetivo. Runs legítimos nacidos después de esa activación no se cancelan ni revierten por confundirlos con actividad anterior.
+- Administrador activo/roles efectivos se verifican cada vez. Solo install inicial new sin recibo propio puede conceder el rol seleccionado. Resume/update/rollback no reponen una revocación; recibo vacío o lookup fallido bloquean la concesión.
+
+## Frontera exacta y límites
+
+El rollback implementado cubre artefactos y refresh de control plane; no restaura datasets ni la infraestructura completa. Antes del cutover, cualquier run nuevo respecto a la barrera o una observación incompleta bloquea cambios de archivos/schedule; un run activo espera, un run nuevo confirmado exige conciliación de datos separada. Reactivar UNPAUSED puede permitir futuras ejecuciones: después de esa frontera no se intenta deshacer sus datos.
+
+Se rechaza antes de sobrescribir si faltan bytes originales verificables, copias íntegras, definiciones completas, identidad/revisión propia o el contrato reversible de paths/modelo. Un snapshot corrupto o una edición ajena observada no se sobreescribe para forzar un pase. Workspace no tiene un CAS nativo observado: el lease protege los workers admitidos, no ediciones externas fuera de la ventana exclusiva de mantenimiento.
+
+ACTIVE/timeUpdated y readback de archivos verifican el refresh técnico; no acreditan por sí solos una conversación, calidad funcional ni todos los bytes realmente servidos por el runtime. Si falta metadata necesaria se mantiene Pending con horario pausado. Ante rechazo de la API de refresh/restore se informa el fallo real; no se inventa un endpoint para reactivar un deployment histórico.
+
+No se implementan borrado, transferencia de state/propiedad ni publicación consultiva PROD. Esas operaciones no son necesarias para la recuperación acotada y siguen fuera del alcance autorizado. No OCI, modelos, actores pagados, Docker ni release final ejecutados. `.oci` no se abrió ni modificó; solo este destino fue editado.
+
+## Validación de esta continuación
+
+- Preflight ejecutado: falla contra la referencia vacía original, que se conserva sin reset.
+- Postflight estable `.local/postflight-recovery-final.txt`: **1.836 tests aprobados en 201.57 s** y compilación Python aprobada. Incluye recibos corruptos, guardas de identidades/formato, cutover incierto y writer race. El comando termina con error exclusivamente por el gate Sentrux frente al vacío, no por tests; no se declara postflight global aprobado.
+- Pruebas focalizadas previas: 39 CLI, 26 store inmutable y 32 de recuperación/cutover/timestamps aprobaron; están incluidas en la suite, no son cobertura adicional sumable.
+- Terraform fmt/validate y cinco tests con proveedores simulados aprobaron después de añadir rollback al campo de operación.
+- Test cases incluyen: update parcial; restore fallido y éxito al Resume; refresh fallido; pérdida de ack de archivos y refresh; rechazo definitivo frente a envío incierto; múltiples generaciones; restores corruptos; conflicto de identidad/modelo/paths; JSON semánticamente igual con raw distinto; mezcla de revisiones; writes/tasks/permisos prohibidos; cutover con ack perdido y carrera de writer.
+- Wheel independiente: imports aislados y hashes declarados aprobados; escaneo staged de 248 archivos aprobado. El parser/archive real del candidato seleccionó 129 archivos / 888.818 bytes con límites de 250 / 10 MiB; véase [contrato de release y parámetros exactos](../release.md). Inmutabilidad de releases habilitada y verificada mediante GitHub API; repositorio sigue privado.
+- Evidencia del coordinador sobre `174e7af`: extracción real con límites efectivos **250 archivos / 10 MiB** seleccionó 124 archivos y 857.609 bytes. Importación de ambos entrypoints sobre solo ese árbol, Python 3.12 en imagen local ya existente y sin red/OCI, aprobó. Límite de archive GitHub: 100 MiB. No usar 64 MiB como contrato: fue un harness inicial corregido.
+- Graphify no configurado, no inicializado. Arko orienta responsabilidades Python; su perfil fastapi-react no se impuso. No se declara arko check aprobado.
+- Versiones nativas, roles/resources/runs/schedule y calidad de agentes siguen pendientes de aceptación coordinada. LangGraph local 1.2.16 heredado no acredita el perfil 1.0.1 ni paridad nativa.
+
+## Sentrux: atribución y estado
+
+No hay reglas custom ni excepciones inventadas. `.sentrux/initial-baseline.json` conserva la referencia de destino vacío; el gate se ejecuta sobre código versionado/no ignorado, sin caches/build/private state. La referencia no fue sustituida.
+
+| Ámbito | Calidad mostrada | Acoplamiento redondeado | Complejas | Ciclos / god files |
+| --- | --- | --- | --- | --- |
+| Referencia vacía | 0.7697 | 0.00 | 0 | 0 / 0 |
+| Capacidades congeladas extraídas | 0.6998 | 0.07 | 3 | 0 / 0 |
+| Candidato anterior 868387f | 0.6968 | 0.08 | 6 | 0 / 0 |
+| Recuperación actual | 0.7016 | 0.07 | 3 | 0 / 0 |
+
+Las tres funciones complejas nuevas fueron eliminadas por responsabilidades reales: admisión y recibos; backup/compatibilidad; journal/refresh; estados de mantenimiento; parsing y binding del CLI. Ya no hay una función que mezcle esos pasos. Permanecen las tres heredadas del extracto congelado. Sin ciclos ni god files.
+
+El gate general **continúa fallando** frente al vacío (0 → 3 y aumento de acoplamiento). Esta comparación no es una aprobación ni un reset. Frente al extracto la complejidad no aumenta y la calidad mostrada mejora aproximadamente 0.0018; corresponde a coordinación revisar esa evidencia para la aceptación de la arquitectura del producto.
+
+## Evidencia local
+
+`.local/preflight-recovery.txt`, `.local/recovery-first.txt`, `.local/artifact-recovery-2.txt`, `.local/recovery-integrated.txt`, `.local/cutover-recovery.txt`, `.local/sentrux-recovery-candidate.txt`, `.local/postflight-recovery-final.txt`. Los intentos intermedios quedan invalidados cuando cambió el código; no se presentan como cierre. SHA/CI y assets publicados registrados en [contrato de release](../release.md); el cierre posterior solo cambia documentación. El tag sigue fijado al código probado. No se ejecutó inferencia, actor pagado ni APPLY por este chat.
+
+## Corrección de ficha: RC2
+
+Solicitud explícita del usuario: nombre visible «AIDP AI Data Governance», imagen real y descripción del despliegue. Cambio acotado a presentation y documentación; no cambia hooks, Terraform, permisos ni operaciones. Se reutiliza el asset público de CTN `/assets/oci-aidp-cloud-migration-lab.png`, inspeccionado como imagen existente. El consumidor usa `<img src>` del mismo origen; no requiere acceso público al repo ni un endpoint nuevo. Preflight vuelve a fallar por el gate heredado. [Release privada e inmutable v0.2.0-rc.2](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.2) publicada desde `851d83757b15fd4938a366738e2fd606a8c26b5b`; RC1 permanece inmutable. CI 42149734792 aprobó 1.836 tests Python, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 215.10 s y compilación aprobados, mismo fallo Sentrux heredado (0.7016, tres complejas, cero ciclos/god files). Los cuatro assets descargados coinciden con sus hashes; [evidencia de RC2](../history/release-evidence.md#publicación-y-verificación-rc2). Revisión UI/OCI bajo coordinación pendiente; no se operaron recursos compartidos.
+
+## Selector Identity Domain: RC3
+
+Solicitud explícita: dominio listado en Deploy Studio mediante `oci_identity_domains`, sin entrada manual del OCID. Campo select obligatorio con patrón conservado, mismo nombre/PNG y sin cambios de runtime. [RC3 privada e inmutable](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.2.0-rc.3) publicada desde `d46a66d9972c63bceb70ce5b72e258657cdcbfc3`; CI 42151723191 aprobó 1.836 tests Python, compilación y cinco tests Terraform. Postflight local: 1.836 tests en 218.38 s y compilación aprobados, mismo gate Sentrux heredado. Parser real actualizado aprobado: 129 archivos / 889.225 bytes, selector obligatorio, source/patrón y ficha preservados. Cuatro assets descargados y hashes verificados; [evidencia RC3](../history/release-evidence.md#publicación-y-verificación-rc3). la coordinación es responsable del consumidor CTN y de las opciones reales. No Browser/Docker/OCI operados por este chat.
+
+## Nombre público, README y memoria
+
+Solicitud explícita: GitHub `jgangini/aidp-ai-data-gobernance` (con b), público, README español; conservar project_id técnico. Nombre/público y nueva release en preparación, con auditoría del historial independiente. URLs canónicas y metadata de paquete actualizadas, grupos genéricos CTN schema 1 y selector real de plataformas existentes. Runtime de agentes intacto; el modelo Agent Flow ya pertenece a Governance. Aprovisionamiento/asociación Autonomous pendiente: el SDK fijado no soporta la API y el GET publicado no acredita OCID asociado. [Contrato y fronteras](../agent-memory.md). Sin campos SQL decorativos ni compatibilidad legacy, sin OCI/APPLY/Browser/Docker.
+
+## Memoria efectiva: candidata 0.3.0
+
+Nombre/visibilidad/README completados en c9b359f; acceso anónimo confirmado, tags previos conservados. Continuación solicitada: Terraform crea/reutiliza Lakehouse 26ai/DW y el hook habilita memoria con SDK 2.189.0, lease/recibo CAS y request propio. Sin wallet/SQL directo. Se corrige salida del hook al contrato real CTN DEPLOY_STUDIO_OUTPUT. Modelo Agent Flow conserva su consumidor Governance. Guardas para READY ajeno, incertidumbre sin resend, revisión/identidad/workrequest, asignación de rol inicial con ambos recibos ausentes y mantenimiento sin cambios de memoria. Evidencia de asociación indirecta: no se inventa lectura del OCID asociado; aceptación nativa detenida. [Contrato de memoria](../agent-memory.md). Checks finales y release v0.3.0-rc.1 en preparación; RC4 público sólo quedó como artefacto candidato local, no fue publicado.
+
+Cierre adicional de seguridad: se detectó que GET404 de Object Storage podía confundirse con ausencia. ReceiptStore ahora exige inspección autorizada exacta/completa; permiso denegado, recibo existente, cursor o metadata inválida fallan cerrados. Se conserva la planificación inicial DISABLED/bucket new sin afirmar ausencia; post-apply verifica siempre y READY al Resume lee su recibo. Un workspace ajeno bloquea antes de memoria/grant. Regresión focalizada: 149 tests aprobados. La suite final anterior de 1.902 pasó; se repite después de esta corrección compartida, sin reutilizar su resultado como validación final.
+
+## Cierre público y memoria 0.3.0
+
+Repositorio renombrado y público: https://github.com/jgangini/aidp-ai-data-gobernance, acceso anónimo confirmado y README español actualizado. [Candidata inmutable v0.3.0-rc.1](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.1) publicada desde `7eec0a8eed107f25a235eb145afa6456508e298c`; tags anteriores intactos. El resolver real CTN sin token aprobó repository/ref/SHA y la descarga; los cuatro assets descargados coinciden por hashes.
+
+CI 42158871228 aprobó 1.911 tests Python, compilación y 18 tests Terraform. Postflight final: 1.911 en 197.79 s y compilación aprobados, fallo exclusivamente arquitectónico contra el baseline vacío. Sentrux calidad 0.7005, coupling 0.07, tres complejas heredadas y cero ciclos/god files. La caída medida desde 0.7016 queda documentada junto al nuevo controlador y sus responsabilidades; sin reset ni nuevas complejas. Graphify no configurado. Fuente de evidencia y hashes: [release](../history/release-evidence.md#evidencia-publicada-030-rc1).
+
+Se completó memoria efectiva en código: crear/reusar Lakehouse 26ai/DW, SDK 2.189.0, ADMIN protegido cuando se consume, sin wallet/SQL directo, recibo/lease/CAS, control de work request e incertidumbre, READY propio con ETag y bloqueo de adopción. No se modificaron programas de agentes. [Contrato y límites](../agent-memory.md). UI/OCI/APPLY y persistencia real detenidos por el usuario; no se declaran aceptados.
+
+Delegación acotada: dos agentes reutilizados para auditoría histórica/contrato oficial y Terraform/tests de memoria, con archivos disjuntos y sin operaciones compartidas. Hallazgos útiles: SDK anterior incompatible, GET sin OCID asociado, 409 incierto, ETags inválidos y brecha 404; todos reconciliados en el cierre. El wrapper de source y los checks compartidos fueron responsabilidad de main. No se dispone de métricas fiables de tokens/tiempo agregado y no se afirma ahorro.
+
+## Contrato de runner: candidata 0.3.0 RC2
+
+La validación real coordinada de RC1 falló antes de OCI/APPLY: `Repository preflight returned invalid JSON`. Se reprodujo ejecutando el entrypoint distribuido con el contexto CTN y `DEPLOY_STUDIO_RESULT` inicialmente vacío: código 1, archivo vacío y JSON sólo en stdout. El CLI esperaba la variable y el objeto de compartimento de post-apply también en preflight.
+
+La corrección distingue las fases: preflight recibe compartimento string más modo y escribe RESULT; post-apply recibe objeto resuelto y escribe OUTPUT. Los errores de contexto también producen JSON en su archivo. Las credenciales exigen archivos explícitos y Signer válido, sin descubrimiento local. Se declaran las seis salidas de estado/operación que el consumidor CTN rechazaba por no figurar en el manifiesto.
+
+Pruebas de entrypoints reales con entorno saneado, Signer y claves efímeras, dos preflights, cinco resultados post-apply y fallos de contexto/credenciales/proveedor. Se conserva una captura exacta de las funciones consumidoras CTN con hash verificable. Transportes y fronteras de efectos simulados, red e imports de agentes bloqueados. Entorno mínimo Python 3.12/OCI 2.184.1/httpx 0.28.1/Pydantic 2.11.10: 90 tests aprobados, incluidos 64 de memoria. CI añade esa misma ruta sin instalar requisitos del paquete. Sin cambios al contrato de memoria ni calidad de agentes; sólo coordinación retomará UI/OCI.
+
+Cierre del código: `bd91108bf95c8e8a93d4164bb78ad77bb4dca278`, CI 42169061530 aprobada, postflight con 1.944 tests y compilación aprobados; gate arquitectónico global fallido conservado. Calidad 0.7001, cuatro complejas incluyendo el consumidor CTN copiado en fixture, cero ciclos/god files. La atribución diagnóstica sin ese fixture conserva las tres complejas del producto. Dos agentes reutilizados: auditoría de clausura de imports y pruebas de entrypoints, sin servicios compartidos ni delegación recursiva. Aportaron la reproducción real y compatibilidad del SDK; sin métricas agregadas fiables de tokens.
+
+Tras los rechazos de revisión automática, el usuario autorizó explícitamente crear/publicar `v0.3.0-rc.2`. Coordinación asumió la publicación para evitar carreras y completó la [prerelease pública inmutable](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.2), sobre `bd91108bf95c8e8a93d4164bb78ad77bb4dca278`, con cuatro assets cuyos digests coinciden. No queda aprobación pendiente. El resolver real CTN sin token confirmó tag/SHA y fuente pública: 132 archivos / 928.250 bytes; sin ejecutar hooks. [Evidencia y hashes](../history/release-evidence.md#candidata-030-rc2-contrato-del-runner). No se repitieron tests ni se declara aceptación UI o instalación OCI. Los cambios Graphify concurrentes pertenecen a otro worker; este cierre sólo modifica estos registros.
+
+## Resource Manager 1.5.7 y formulario de instalación: candidata RC3
+
+La prueba nativa coordinada de RC2 aprobó UI Validate y creó compartimento/stack. El job falló antes de crear AIDP porque Resource Manager usa Terraform 1.5.7 y el módulo exigía 1.9.0. El binario real 1.5.7 reprodujo además cuatro referencias cruzadas no admitidas en validaciones de variables. [Oracle documenta la CLI 1.5.7](https://docs.oracle.com/en-us/iaas/Content/ResourceManager/Reference/terraformversions.htm); no basta reducir el mínimo declarado.
+
+El módulo admite 1.5.7 y conserva las condiciones en puntos soportados: preconditions de outputs para identidad AIDP/workspace, precondition del datasource para el OCID de base existente, validación propia de complejidad de contraseña más precondition no vacía para base nueva. No se añade recurso guard ni dependencia que difiera la consulta de base existente hasta apply. Se preservan sus tres postconditions, los recursos, ownership, IAM, `prevent_destroy` y el contrato de memoria. La CI separa el binario real 1.5.7 con planes offline de los mocks de la versión moderna.
+
+Solicitud adicional del usuario: el formulario de instalación elimina `governance_operation` y presenta `Services mode`, con `Create new AIDP` / `Use existing AIDP`. Quedan doce campos. TF y CLI conservan `install` por defecto; los comandos administrativos, la recuperación y las guardas de source/identidad/operación permanecen disponibles fuera del formulario. Una instalación pendiente con el mismo ID/fuente puede continuar como install; no se convierte una operación de mantenimiento ni se cambia de fuente al Resume.
+
+El campo `existing_workspace_key` pasa a selector `Existing workspace`, con fuente `oci_aidp_workspaces` contextual a `existing_ai_data_platform_ocid`. Conserva required, visibilidad existing y patrón UUID. La coordinación implementa la fuente y su consumo en CTN; este repositorio declara y verifica el contrato del manifiesto, sin consultar OCI.
+
+El campo `model_id` conserva su fuente y binding; su etiqueta es exactamente `Select Model`, según la instrucción adicional del usuario. El título compartido del grupo Agent Flow pertenece a CTN.
+
+Las instrucciones UI posteriores fijan todos los labels/opciones/stages en inglés. El formulario separa `artifacts_bucket_name` (texto new) y `artifacts_existing_bucket_name` (selector `oci_active_buckets` existing). Preflight normaliza a un único nombre canónico, lo devuelve como override declarado y no añade variable Terraform; post-apply rechaza discrepancias de selector/canónico/output y modo. El selector de base usa `oci_autonomous_databases`, conservando OCID, propiedad y validaciones. Labels exactos: `Database mode`, `Create new database` / `Use existing database`, `Database profile`, `Database admin password`, `Existing Autonomous Database`. No wallet, SQL ni nueva lógica de memoria. El formulario final tiene trece campos; las descripciones de doce corresponden al paso anterior de esta misma candidata.
+
+La coordinación conserva los recursos ya creados y toda operación OCI/Docker/Browser. Este chat prepara código, CI y assets de RC3; publicación no autorizada en esta continuación. El worker Graphify mantiene sus rutas locales, que no se incorporan al candidato.
+
+Entrega final por instrucción de coordinación: rama `codex/deploy-studio-selectors-tf157` y PR revisable, sin nuevos pushes a main ni publicación. La base 59c53e5 ya aprobó los cuatro jobs Linux, incluido el check real 1.5.7 tras acortar TMPDIR para IPC de proveedores. Los cambios finales añaden los selectores y el binding canónico del bucket: 69 pruebas CLI/manifiesto y 40 entrypoints reales aprobados; preparador/overrides reales CTN verificados en ambos modos. El índice Graphify existente se mantiene local y fuera del commit/asset. La comprobación final integrada y las referencias CI se entregan con el PR.
+
+Continuación de defaults solicitada tras esa revisión: `Services mode` inicia en `new` y `Select Model` en `xai.grok-4.7`. El inventario real comunicado por coordinación muestra ese ID y versión 1.0.0; el código CTN transmite `model.id`, sin concatenar la versión. Se encontró que ambos ensambladores sólo aceptaban OCID, por lo que un cambio ciego del default fallaría al construir el bundle. Comparten ahora un patrón que conserva OCID y añade únicamente el ID exacto verificado; no se admite una gramática genérica de alias ni se cambia el compartimento o cliente LLM. Se refrescan sólo los hashes de los tres módulos modificados. CI y assets se reconstruyen desde el nuevo SHA del mismo PR; sin merge, tag, publicación, wallet, OCI ni inferencia.
+
+## Nombre de AIDP nuevo y revisión de wallet: candidata RC4
+
+RC3 quedó publicada e inmutable por coordinación en `775554bf91798e07b109adde2559144b32f80f67`; este trabajo parte de su merge en main `7da4ec9`, en la rama `codex/governance-aidp-name`. La coordinación aclaró después que `xai.grok-4.7` es display_name y CTN resuelve la selección inicial por coincidencia única al ID regional real. Se corrige esa descripción en las guías vigentes, sin modificar RC3 ni cambiar el contrato de modelos en código.
+
+El campo `new_aidp_name`, label `New AIDP name`, aparece inmediatamente después de `Services mode`, con ambos span 1 y visible_when new. Su default es `aidp_governance`; la variable Terraform se utiliza directamente en `oci_ai_data_platform_ai_data_platform.governance.display_name`. Se conservan nombres internos con sufijo para IAM, memoria y workspace; existing no declara otra plataforma. Se prueba el valor de plan, no sólo la existencia del campo.
+
+Wallet verificada antes de ampliar UI: el SDK OCI 2.184.1 expone únicamente vector_db_id, vector_db_admin_cred y vector_db_admin_secret_id en EnableAiFeatureDetails. El instalador usa OCID + ADMIN; los agentes usan AsyncProxyCheckpointClient. La documentación oficial de habilitación de AI también pide ADMIN para una base existente. No hay consumidor de ZIP/contraseña de wallet, no se añaden esos campos ni SQL, y capabilities.existing_database_wallet conserva none. La alternativa implementada es ADMIN condicional para habilitar/reintentar memoria propia; READY propio compatible puede verificarse sin ese secreto.
+
+El objetivo es entregar un nuevo PR con CI y assets de RC4, sin merge/tag/publicación ni operaciones OCI/Docker/Browser desde este chat. La coordinación conserva el entorno compartido; se preservan los archivos locales de Graphify y los cambios ajenos fuera del commit y los assets.
+
+## Cierre vigente: 0.3.0 RC5 publicada
+
+La coordinación integró el [PR #3](https://github.com/jgangini/aidp-ai-data-gobernance/pull/3) en main y publicó [v0.3.0-rc.5](https://github.com/jgangini/aidp-ai-data-gobernance/releases/tag/v0.3.0-rc.5), pública e inmutable, desde `8f977c57a90eb72777f8003d78af1ced7cd10e58`. GitHub confirma sus cuatro assets y digests frente a los preparados. El formulario exige schema 2 y declara grupos, controles, orden y ancho; ADMIN se genera sólo para base nueva. El contrato de contexto de los hooks sigue en schema 1 y no cambia la instalación.
+
+Suite local de 2.010 tests y compilación aprobadas; CI de PR y push aprobadas con runner y ambas rutas Terraform. Sentrux conserva el gate fallido frente al baseline vacío, sin reset; Graphify Python actualizado con limitación HCL. Los [hashes, referencias y límites del cierre](../history/release-evidence.md#publicación-030-rc5-formulario-declarativo-schema-2) son la evidencia vigente. Esta continuación sólo registra la publicación; no publica otra versión ni opera OCI. La aceptación funcional nativa permanece bajo coordinación.

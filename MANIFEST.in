@@ -1,0 +1,7 @@
+include LICENSE README.md provenance.json requirements.txt requirements-lock.txt
+recursive-include src *.py *.json *.md *.txt
+prune .oci
+prune .local
+prune .venv
+prune .git
+global-exclude *.pem *.key *.tfstate *.pyc
